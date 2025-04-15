@@ -5,42 +5,48 @@ class LaneDetection:
         self.debug_image = None
 
     def detect(self, image: np.ndarray):
-        # 1. Graustufenbild erzeugen
         grayscale = np.dot(image[..., :3], [0.299, 0.587, 0.114])
 
-        # 2. X-Gradient berechnen (horizontaler Gradient)
-        grad_x = np.abs(np.diff(grayscale, axis=1))  # Ableitung entlang der x-Achse
-        grad_x = np.pad(grad_x, ((0, 0), (1, 0)), mode='constant')  # Padding, um Bildgröße zu halten
+        # X- und Y-Gradienten berechnen
+        grad_x = np.abs(np.diff(grayscale, axis=1))  # horizontal
+        grad_x = np.pad(grad_x, ((0, 0), (1, 0)), mode='constant')
 
-        # 3. Spaltenweise nach starkem Gradient suchen (nur ein Bereich der Bildhöhe ist relevant)
-        h, w = grad_x.shape
-        middle = h // 2
+        grad_y = np.abs(np.diff(grayscale, axis=0))  # vertikal
+        grad_y = np.pad(grad_y, ((1, 0), (0, 0)), mode='constant')
 
-        left_edge = None
-        right_edge = None
+        # Kantenstärke kombinieren
+        edge_strength = grad_x + grad_y
 
-        # Mittelbereich analysieren
-        threshold = 50  # Experimentell – muss ggf. angepasst werden
-        scan_line = grad_x[middle]
+        h, w = edge_strength.shape
+        threshold = 80  # kann angepasst werden
 
-        # Suche von links nach starkem Anstieg
-        for x in range(w // 2):
-            if scan_line[x] > threshold:
-                left_edge = x
-                break
+        left_points = []
+        right_points = []
 
-        # Suche von rechts nach starkem Anstieg
-        for x in reversed(range(w // 2, w)):
-            if scan_line[x] > threshold:
-                right_edge = x
-                break
+        for y in range(h // 3, h - 5):  # nur unteren Bildbereich analysieren
+            row = edge_strength[y]
 
-        # Debug-Bild: Zeichne detektierte Kanten ein (für Visualisierung)
+            # Linker Rand: Suche von links
+            for x in range(w // 2):
+                if row[x] > threshold:
+                    left_points.append((x, y))
+                    break
+
+            # Rechter Rand: Suche von rechts
+            for x in reversed(range(w // 2, w)):
+                if row[x] > threshold:
+                    right_points.append((x, y))
+                    break
+
+        # Debug-Bild vorbereiten
         debug_image = np.copy(image)
-        if left_edge is not None:
-            debug_image[:, left_edge:left_edge+1] = [255, 0, 0]  # Blau für linken Rand
-        if right_edge is not None:
-            debug_image[:, right_edge:right_edge+1] = [0, 255, 0]  # Grün für rechten Rand
+
+        # Linienpunkte einfärben
+        for (x, y) in left_points:
+            debug_image[y, x] = [255, 0, 0]  # Blau
+
+        for (x, y) in right_points:
+            debug_image[y, x] = [0, 255, 0]  # Grün
 
         self.debug_image = debug_image
-        return left_edge, right_edge
+        return left_points, right_points
