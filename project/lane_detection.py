@@ -5,20 +5,25 @@ class LaneDetection:
         self.debug_image = None
 
     def detect(self, image: np.ndarray):
+        # Konvertiere das Bild in Graustufen
         grayscale = np.dot(image[..., :3], [0.299, 0.587, 0.114])
 
+        # Binärer Filter: Schwellenwert setzen
+        threshold = 120  # Schwellenwert für die Trennung
+        binary_mask = (grayscale > threshold).astype(np.uint8) * 255
+
         # X- und Y-Gradienten berechnen
-        grad_x = np.abs(np.diff(grayscale, axis=1))  # horizontal
+        grad_x = np.abs(np.diff(binary_mask, axis=1))  # horizontal
         grad_x = np.pad(grad_x, ((0, 0), (1, 0)), mode='constant')
 
-        grad_y = np.abs(np.diff(grayscale, axis=0))  # vertikal
+        grad_y = np.abs(np.diff(binary_mask, axis=0))  # vertikal
         grad_y = np.pad(grad_y, ((1, 0), (0, 0)), mode='constant')
 
         # Kantenstärke kombinieren
         edge_strength = grad_x + grad_y
 
         h, w = edge_strength.shape
-        threshold = 80  # kann angepasst werden
+        edge_threshold = 80  # kann angepasst werden
 
         left_points = []
         right_points = []
@@ -28,13 +33,13 @@ class LaneDetection:
 
             # Linker Rand: Suche von links
             for x in range(w // 2):
-                if row[x] > threshold:
+                if row[x] > edge_threshold:
                     left_points.append((x, y))
                     break
 
             # Rechter Rand: Suche von rechts
             for x in reversed(range(w // 2, w)):
-                if row[x] > threshold:
+                if row[x] > edge_threshold:
                     right_points.append((x, y))
                     break
 
