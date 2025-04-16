@@ -16,10 +16,22 @@ def run(env, input_controller: InputController):
     total_reward = 0.0
 
     while not input_controller.quit:
-        lane_detection.detect(state_image)
+        # Führe die Spurenerkennung durch
+        left_lines, right_lines = lane_detection.detect(state_image)
 
-        cv_image = np.asarray(lane_detection.debug_image, dtype=np.uint8)
-        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+        # Kopiere das Originalbild für die Visualisierung
+        debug_image = state_image.copy()
+
+        # Zeichne die linken Linien in Rot
+        for y, x in left_lines:
+            debug_image[y, x] = [255, 0, 0]  # Rot (BGR-Format)
+
+        # Zeichne die rechten Linien in Grün
+        for y, x in right_lines:
+            debug_image[y, x] = [0, 255, 0]  # Grün (BGR-Format)
+
+        # Konvertiere das Bild für die Anzeige
+        cv_image = cv2.cvtColor(debug_image, cv2.COLOR_RGB2BGR)
         cv_image = cv2.resize(cv_image, np.asarray(state_image.shape[:2]) * 6)
         cv2.imshow("Car Racing - Lane Detection", cv_image)
         cv2.waitKey(1)
@@ -52,7 +64,7 @@ def main():
 
     render_mode = "rgb_array" if args.no_display else "human"
     env = CarRacingEnvWrapper(
-        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=True)
+        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=False)
     )
     input_controller = InputController()
 
