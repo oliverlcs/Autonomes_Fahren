@@ -32,7 +32,7 @@ class LaneDetection:
         left_points = []
         right_points = []
 
-        for y in range(h // 3, h - 5):  # nur unteren Bildbereich analysieren
+        for y in range(0, h - 5):  # nur unteren Bildbereich analysieren
             row = edge_strength[y]
 
             # Linker Rand: Suche von links
