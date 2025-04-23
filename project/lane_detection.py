@@ -13,6 +13,7 @@ class LaneDetection:
         max_val = np.max(image, axis=-1)
         min_val = np.min(image, axis=-1)
         delta = max_val - min_val
+        delta[delta == 0] = 1e-10  # Vermeide Division durch Null
 
         # Berechne den Farbton (Hue)
         hue = np.zeros_like(max_val)
@@ -193,6 +194,7 @@ class LaneDetection:
         return points[mask]
 
     def short_dist(self, punkt, punkte_array):
+        if punkte_array.size == 0:  # Überprüfen, ob das Array leer ist
+            return float('inf')  # Unendliche Distanz zurückgeben
         abstaende = np.linalg.norm(punkte_array - punkt, axis=1)
-
         return np.min(abstaende)
