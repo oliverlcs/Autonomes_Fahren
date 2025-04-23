@@ -16,13 +16,13 @@ def run(env, input_controller: InputController):
     total_reward = 0.0
 
     while not input_controller.quit:
-        lane_detection.detect(state_image)
+        # lane_detection.detect(state_image)
 
-        cv_image = np.asarray(lane_detection.debug_image, dtype=np.uint8)
-        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
-        cv_image = cv2.resize(cv_image, np.asarray(state_image.shape[:2]) * 6)
-        cv2.imshow("Car Racing - Lane Detection", cv_image)
-        cv2.waitKey(1)
+        # cv_image = np.asarray(lane_detection.debug_image, dtype=np.uint8)
+        # cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+        # cv_image = cv2.resize(cv_image, np.asarray(state_image.shape[:2]) * 6)
+        # cv2.imshow("Car Racing - Lane Detection", cv_image)
+        # cv2.waitKey(1)
 
         # Step the environment
         input_controller.update()

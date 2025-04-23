@@ -19,9 +19,9 @@ def run(env, input_controller: InputController):
         way_points, curvature = path_planning.plan(
             info["left_lane_boundary"], info["right_lane_boundary"]
         )
-
+        # way_points = np.asarray([])
         cv_image = np.asarray(state_image, dtype=np.uint8)
-        way_points = np.array(way_points, dtype=np.int32)
+        way_points = np.array(way_points, dtype=np.float32)
         for point in way_points:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
