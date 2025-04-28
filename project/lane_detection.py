@@ -1,79 +1,32 @@
 import numpy as np
-from scipy.ndimage import convolve
-from collections import defaultdict
+from scipy import ndimage
 
 class LaneDetection:
     def __init__(self):
         self.debug_image = None
+        self.car_position = np.array([48, 64])
 
     def detect(self, image: np.ndarray):
-        # Konvertiere das Bild von RGB nach HSV (manuell mit NumPy)
-        image = image.astype(np.float32) / 255.0  # Normiere auf [0, 1]
-        r, g, b = image[..., 0], image[..., 1], image[..., 2]
-        max_val = np.max(image, axis=-1)
-        min_val = np.min(image, axis=-1)
-        delta = max_val - min_val
-        delta[delta == 0] = 1e-10  # Vermeide Division durch Null
+        # --- Schritt 1: In Graustufen umwandeln ---
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            # RGB -> Grau: einfache Durchschnittsbildung
+            gray = np.mean(image, axis=2)
+        else:
+            gray = image.copy()
 
-        # Berechne den Farbton (Hue)
-        hue = np.zeros_like(max_val)
-        mask = delta > 0
-        hue[mask & (max_val == r)] = (60 * ((g - b) / delta) % 360)[mask & (max_val == r)]
-        hue[mask & (max_val == g)] = (60 * ((b - r) / delta) + 120)[mask & (max_val == g)]
-        hue[mask & (max_val == b)] = (60 * ((r - g) / delta) + 240)[mask & (max_val == b)]
+        # --- Schritt 2: Sobel-Kantenfilter anwenden ---
+        sobel_x = ndimage.sobel(gray, axis=1, mode='reflect')  # Kanten in x-Richtung
+        sobel_y = ndimage.sobel(gray, axis=0, mode='reflect')  # Kanten in y-Richtung
+        sobel_magnitude = np.hypot(sobel_x, sobel_y)           # Betrag der Gradienten
 
-        # Berechne die Sättigung (Saturation)
-        saturation = np.zeros_like(max_val)
-        saturation[max_val > 0] = (delta / max_val)[max_val > 0]
+        # --- Schritt 3: Starke Kantenpunkte extrahieren ---
+        threshold = np.percentile(sobel_magnitude, 95)  # Nur die stärksten 5% der Kanten nehmen
+        edges = sobel_magnitude > threshold
 
-        # Value = Maximalwert
-        value = max_val
-
-        # Erstelle das HSV-Bild
-        hsv = np.stack([hue, saturation, value], axis=-1)
-
-        # Definiere eine Schwelle für "graue Straße"
-        lower_gray = np.array([0, 0, 0.2])  # Angepasst für HSV-Werte
-        upper_gray = np.array([360, 0.2, 0.8])  # Angepasst für HSV-Werte
-
-        # Erstelle die Maske für graue Straßen
-        road_mask = (
-            (hsv[..., 0] >= lower_gray[0]) & (hsv[..., 0] <= upper_gray[0]) &
-            (hsv[..., 1] >= lower_gray[1]) & (hsv[..., 1] <= upper_gray[1]) &
-            (hsv[..., 2] >= lower_gray[2]) & (hsv[..., 2] <= upper_gray[2])
-        ).astype(np.uint8)
-
-        # Maskiere den Bereich des Autos
-        mask = np.ones(image.shape[:2], dtype=np.uint8)  # Erstelle eine Maske mit Einsen
-        self.car_position = np.array([48, 64])  # Position des Autos (x, y)
-        car_mask_width = 40   # Breite der Auto-Maske
-        mask[self.car_position[1]:, self.car_position[0] - car_mask_width // 2:self.car_position[0] + car_mask_width // 2] = 0
-
-        # Kombiniere die Straßenmaske mit der Auto-Maske
-        road_mask = road_mask * mask
-
-        # Wende die Maske auf das Bild an
-        masked_image = image[..., 0] * road_mask  # Verwende nur einen Kanal für Kanten
-
-        # Wende Sobel-Filter an, um Kanten zu erkennen
-        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
-        edges_x = convolve(masked_image, sobel_x)
-        edges_y = convolve(masked_image, sobel_y)
-        edges = np.sqrt(edges_x**2 + edges_y**2)
-
-        # Normalisiere die Kanten und erstelle ein binäres Bild
-        edges = (edges / edges.max() * 255).astype(np.uint8)
-        edge_threshold = 50
-        edge_binary = (edges > edge_threshold).astype(np.uint8) * 255
-
-        # Optional: Debug-Image aktualisieren
-        self.debug_image = edge_binary
-
-        # Linien extrahieren
-        lines = np.column_stack(np.where(edge_binary > 0))
-
-        #print(lines)
+        # --- Schritt 4: Kantenpunkte sammeln als Linienpunkte ---
+        y_coords, x_coords = np.nonzero(edges)
+        lines = np.column_stack((y_coords, x_coords))  # Form: [y, x] (wie erwartet)
+        print(lines)
 
         # Gruppiere die Linien basierend auf ihrer Nähe
         left_lines = []
