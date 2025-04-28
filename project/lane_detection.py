@@ -81,9 +81,22 @@ class LaneDetection:
         matched_points = points[match]
 
         # Berechne den Durchschnitt der x-Werte
-        average_x = np.mean(matched_points[:, 1])
-        
-        
+        while True:
+            average_x = np.mean(matched_points[:, 1])
+
+            # Prüfe, ob alle Punkte innerhalb von ±2 vom Durchschnitt liegen
+            if not(np.all((matched_points[:, 1] >= average_x - 2) & (matched_points[:, 1] <= average_x + 2))):
+                break  # Wenn die Bedingung erfüllt ist, beende die Schleife
+
+            # Setze target_y um 2 niedriger und suche erneut
+            target_y -= 2
+            match = (points[:, 0] >= target_y) & (points[:, 0] <= target_y)
+            matched_points = points[match]
+
+            # Beende die Schleife, wenn keine Punkte mehr übrig sind
+            if matched_points.size == 0:
+                break
+
         # Sortiere die Punkte basierend auf ihrem x-Wert
         left_points = matched_points[matched_points[:, 1] < average_x]
         right_points = matched_points[matched_points[:, 1] >= average_x]
