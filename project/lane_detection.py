@@ -1,79 +1,50 @@
 import numpy as np
-from scipy.ndimage import convolve
-from collections import defaultdict
+from scipy import ndimage
 
 class LaneDetection:
     def __init__(self):
         self.debug_image = None
+        self.car_position = np.array([48, 64])
 
     def detect(self, image: np.ndarray):
-        # Konvertiere das Bild von RGB nach HSV (manuell mit NumPy)
-        image = image.astype(np.float32) / 255.0  # Normiere auf [0, 1]
-        r, g, b = image[..., 0], image[..., 1], image[..., 2]
-        max_val = np.max(image, axis=-1)
-        min_val = np.min(image, axis=-1)
-        delta = max_val - min_val
-        delta[delta == 0] = 1e-10  # Vermeide Division durch Null
+        # --- Schritt 1: In Graustufen umwandeln ---
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            # RGB -> Grau: einfache Durchschnittsbildung
+            gray = np.mean(image, axis=2)
+        else:
+            gray = image.copy()
 
-        # Berechne den Farbton (Hue)
-        hue = np.zeros_like(max_val)
-        mask = delta > 0
-        hue[mask & (max_val == r)] = (60 * ((g - b) / delta) % 360)[mask & (max_val == r)]
-        hue[mask & (max_val == g)] = (60 * ((b - r) / delta) + 120)[mask & (max_val == g)]
-        hue[mask & (max_val == b)] = (60 * ((r - g) / delta) + 240)[mask & (max_val == b)]
+        # --- Schritt 2: Sobel-Kantenfilter anwenden ---
+        sobel_x = ndimage.sobel(gray, axis=1, mode='reflect')  # Kanten in x-Richtung
+        sobel_y = ndimage.sobel(gray, axis=0, mode='reflect')  # Kanten in y-Richtung
+        sobel_magnitude = np.hypot(sobel_x, sobel_y)
 
-        # Berechne die Sättigung (Saturation)
-        saturation = np.zeros_like(max_val)
-        saturation[max_val > 0] = (delta / max_val)[max_val > 0]
+        # --- Schritt 2.5: Fahrzeugbereich maskieren ---
+        vehicle_mask = np.zeros_like(sobel_magnitude, dtype=bool)
 
-        # Value = Maximalwert
-        value = max_val
+        # Das Auto ist auf self.car_position = [48, 64]
+        # Auto Breite: 20 Pixel -> x-Range: [64-10, 64+10] = [54, 74]
+        car_y, car_x = self.car_position
 
-        # Erstelle das HSV-Bild
-        hsv = np.stack([hue, saturation, value], axis=-1)
+        vehicle_mask[
+            car_y+16:car_y+32,         # ca. 16 Pixel hoch
+            car_x-20:car_x-12 # 20 Pixel breit
+        ] = True
 
-        # Definiere eine Schwelle für "graue Straße"
-        lower_gray = np.array([0, 0, 0.2])  # Angepasst für HSV-Werte
-        upper_gray = np.array([360, 0.2, 0.8])  # Angepasst für HSV-Werte
+        # Setze in der sobel_magnitude die Fahrzeugregion auf 0, damit keine Kanten dort erkannt werden
+        sobel_magnitude[vehicle_mask] = 0
 
-        # Erstelle die Maske für graue Straßen
-        road_mask = (
-            (hsv[..., 0] >= lower_gray[0]) & (hsv[..., 0] <= upper_gray[0]) &
-            (hsv[..., 1] >= lower_gray[1]) & (hsv[..., 1] <= upper_gray[1]) &
-            (hsv[..., 2] >= lower_gray[2]) & (hsv[..., 2] <= upper_gray[2])
-        ).astype(np.uint8)
 
-        # Maskiere den Bereich des Autos
-        mask = np.ones(image.shape[:2], dtype=np.uint8)  # Erstelle eine Maske mit Einsen
-        self.car_position = np.array([48, 64])  # Position des Autos (x, y)
-        car_mask_width = 40   # Breite der Auto-Maske
-        mask[self.car_position[1]:, self.car_position[0] - car_mask_width // 2:self.car_position[0] + car_mask_width // 2] = 0
+        # --- Schritt 3: Starke Kantenpunkte extrahieren ---
+        threshold = np.percentile(sobel_magnitude, 93)  # Nur die stärksten 7% der Kanten nehmen
+        edges = sobel_magnitude > threshold
 
-        # Kombiniere die Straßenmaske mit der Auto-Maske
-        road_mask = road_mask * mask
+        # --- Schritt 4: Kantenpunkte sammeln als Linienpunkte ---
+        y_coords, x_coords = np.nonzero(edges)
+        lines = np.column_stack((y_coords, x_coords))  # Form: [y, x] (wie erwartet)
 
-        # Wende die Maske auf das Bild an
-        masked_image = image[..., 0] * road_mask  # Verwende nur einen Kanal für Kanten
-
-        # Wende Sobel-Filter an, um Kanten zu erkennen
-        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
-        edges_x = convolve(masked_image, sobel_x)
-        edges_y = convolve(masked_image, sobel_y)
-        edges = np.sqrt(edges_x**2 + edges_y**2)
-
-        # Normalisiere die Kanten und erstelle ein binäres Bild
-        edges = (edges / edges.max() * 255).astype(np.uint8)
-        edge_threshold = 50
-        edge_binary = (edges > edge_threshold).astype(np.uint8) * 255
-
-        # Optional: Debug-Image aktualisieren
-        self.debug_image = edge_binary
-
-        # Linien extrahieren
-        lines = np.column_stack(np.where(edge_binary > 0))
-
-        #print(lines)
+        np.set_printoptions(threshold=np.inf)
+        print(lines)
 
         # Gruppiere die Linien basierend auf ihrer Nähe
         left_lines = []
@@ -90,27 +61,41 @@ class LaneDetection:
     def group_lines(self, points):
         # Konvertiere zu NumPy-Array für Performance
         points = np.array(points)
+        # Entferne alle Punkte mit y > 80
+        points = points[points[:, 0] <= 80]
 
         if points.size == 0:
             return [], []
 
         # Entferne Punkte unterhalb des Autos (y >= car_position[1])
-        points = points[points[:, 0] < self.car_position[1]-1]
+        points = points[points[:, 0] < self.car_position[1]+19]
 
         #print(points)
         right_points = np.array([])
         left_points = np.array([])
 
         # Finde alle Punkte auf Höhe y=62 (mit Toleranz von +/-1 Pixel)
-        target_y = 62
-        match = ((points[:, 0] >= target_y) & (points[:, 0] <= target_y) &
-                 (points[:, 1] >= 28) & (points[:, 1] <= 68))
-
-        # Filtere die Punkte, die auf der Zielhöhe liegen
+        target_y = 80
+        match = (points[:, 0] >= target_y) & (points[:, 0] <= target_y)
+        # Filtere die Punkte, die auf der Zielhöhe 80 liegen
         matched_points = points[match]
 
         # Berechne den Durchschnitt der x-Werte
-        average_x = np.mean(matched_points[:, 1])
+        while True:
+            average_x = np.mean(matched_points[:, 1])
+
+            # Prüfe, ob alle Punkte innerhalb von ±2 vom Durchschnitt liegen
+            if not(np.all((matched_points[:, 1] >= average_x - 2) & (matched_points[:, 1] <= average_x + 2))):
+                break  # Wenn die Bedingung erfüllt ist, beende die Schleife
+
+            # Setze target_y um 2 niedriger und suche erneut
+            target_y -= 2
+            match = (points[:, 0] >= target_y) & (points[:, 0] <= target_y)
+            matched_points = points[match]
+
+            # Beende die Schleife, wenn keine Punkte mehr übrig sind
+            if matched_points.size == 0:
+                break
 
         # Sortiere die Punkte basierend auf ihrem x-Wert
         left_points = matched_points[matched_points[:, 1] < average_x]
