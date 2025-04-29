@@ -10,16 +10,23 @@ class PathPlanning:
         pass
     
     def adjust_lanes(self, lane, smoothing_factor=0, sample_points=10):
-        # spl_left is an instance of BSpline object used for fitting spline function
-        spl_lane, _ = make_splprep(lane.T, s=smoothing_factor)
-        
-        # Sample x points along each border
-        x_vals = np.linspace(0, 1, sample_points)
-        
-        # points_lane of shape (x, 2): arrays containing x-y-value pairs
-        points_lane = np.array(spl_lane(x_vals)).T
-        
-        return points_lane
+        try:
+            # spl_left is an instance of BSpline object used for fitting spline function
+            spl_lane, _ = make_splprep(lane.T, s=smoothing_factor)
+            
+            # Sample x points along each border
+            x_vals = np.linspace(0, 1, sample_points)
+            
+            # points_lane of shape (x, 2): arrays containing x-y-value pairs
+            points_lane = np.array(spl_lane(x_vals)).T
+            
+            return points_lane
+        except ValueError:
+            print("ValueError: nc = 4 > m = 3")
+            return []
+        except IndexError:
+            print("IndexError: index -1 is out of bounds for axis 0 with size 0")
+            return []
     
     def calculate_centerline(self, left_lane, right_lane):
         centerline = np.array(np.mean([left_lane, right_lane], axis=0))
@@ -32,26 +39,6 @@ class PathPlanning:
         dyy = np.gradient(dy)
         curvature = (dx * dyy - dy * dxx) / np.power(dx**2 + dy**2, 1.5)
         return np.array(curvature)
-    
-    def scale_shift(curvature_value):
-        abs_curvature = np.abs(curvature_value)
-        
-        # Sharp turn: > 0.015 (larger curvature)
-        if abs_curvature > 0.015:
-            shift = abs_curvature * 1000  # significant shift for sharp turns
-        # Moderate turn: 0.01 to 0.015
-        elif abs_curvature > 0.01:
-            shift = abs_curvature * 500  # moderate shift for 90-degree turn
-        # Gentle turn: 0.001 to 0.01
-        elif abs_curvature > 0.001:
-            shift = abs_curvature * 100  # small shift for gentle turns
-        # Almost flat road: < 0.001
-        else:
-            shift = 0  # no shift for flat roads
-        
-        # Clip the shift so it doesn’t go beyond reasonable limits
-        shift = np.clip(shift, -10, 10)
-        return shift
     
     
     def optimize_trajectory(self, centerline, centerline_curvature):
@@ -122,10 +109,17 @@ class PathPlanning:
         left_lane = self.adjust_lanes(np.array(left_lane_points), sample_points=15)
         right_lane = self.adjust_lanes(np.array(right_lane_points), sample_points=15)
         
+        y = 30
+        test_points = [[10, y], [20, y], [30, y], [40, y], [50, y], [60, y], [70, y], [80, y]]
+        
+        # check for empty lanes when outside of a a track
+        # if len(left_lane) == 0 or len(right_lane) == 0:
+        #     return [], [], test_points
+        
         # Calculate centerline
         centerline = self.calculate_centerline(left_lane, right_lane)
-    
-        # Clip centerline to stay above car
+        
+        # Clip centerline to stay above car        
         mask = (0 < centerline[:,0]) & (centerline[:, 0] < 96) & (0 < centerline[:,1]) & (centerline[:,1] < 67)
         centerline = np.array(centerline[mask])
         
@@ -137,5 +131,9 @@ class PathPlanning:
 
         # Smooth trajectory
         optimized_trajectory = self.adjust_lanes(optimized_trajectory, smoothing_factor=0.2, sample_points=20)
+        
+        mask_trajectory = (0 < optimized_trajectory[:,0]) & (optimized_trajectory[:, 0] < 96) & (30 < optimized_trajectory[:,1]) & (optimized_trajectory[:,1] < 67)
+        optimized_trajectory = np.array(optimized_trajectory[mask_trajectory])
+        
            
-        return centerline, optimized_trajectory
+        return centerline, optimized_trajectory, test_points

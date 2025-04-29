@@ -19,7 +19,7 @@ def run(env, input_controller: InputController):
     time.sleep(0.5)
 
     while not input_controller.quit:
-        centerline, optimized_trajectory = path_planning.plan(
+        centerline, optimized_trajectory, test_points = path_planning.plan(
             info["left_lane_boundary"], info["right_lane_boundary"]
         )
         # way_points = np.asarray([])
@@ -42,6 +42,10 @@ def run(env, input_controller: InputController):
         for point in optimized_trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 255, 0]
+        # for point in test_points:
+        #      if 0 < point[0] < 96 and 0 < point[1] < 84:
+        #         cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
+            
 
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
         cv_image = cv2.resize(cv_image, (cv_image.shape[1] * 6, cv_image.shape[0] * 6))
