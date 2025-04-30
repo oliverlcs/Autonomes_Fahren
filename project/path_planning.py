@@ -28,17 +28,27 @@ class PathPlanning:
             print("IndexError: index -1 is out of bounds for axis 0 with size 0")
             return np.empty((0, 2))
     
-    def calculate_centerline(self, left_lane, right_lane):
-        centerline = np.array(np.mean([left_lane, right_lane], axis=0))
-        return centerline
+    def calculate_centerline(self, left_lane: np.array, right_lane: np.array):
+        
+        if left_lane.shape == right_lane.shape:
+            centerline = np.array(np.mean([left_lane, right_lane], axis=0))
+            return centerline
+        else:
+            print("Incompatible shapes: left_lane and right_lane must have the same length")
+            centerline = np.empty(0) 
+        
     
     def calculate_curvature(self, x, y):
-        dx = np.gradient(x)
-        dy = np.gradient(y)
-        dxx = np.gradient(dx)
-        dyy = np.gradient(dy)
-        curvature = (dx * dyy - dy * dxx) / np.power(dx**2 + dy**2, 1.5)
-        return np.array(curvature)
+        try:
+            dx = np.gradient(x)
+            dy = np.gradient(y)
+            dxx = np.gradient(dx)
+            dyy = np.gradient(dy)
+            curvature = (dx * dyy - dy * dxx) / np.power(dx**2 + dy**2, 1.5)
+            return np.array(curvature)
+        except Exception as e:
+            print("Curvature calculation error: x or y too small to calculate gradient")
+            return np.empty(0)
     
     
     def optimize_trajectory(self, centerline, centerline_curvature):
@@ -133,12 +143,18 @@ class PathPlanning:
         # Calculate centerline
         centerline = self.calculate_centerline(left_lane, right_lane)
         
+        if centerline is None or centerline.shape[0] == 0:
+            return np.empty((0, 2)), np.empty(0)
+        
         # Clip centerline to stay above car        
         mask = (0 < centerline[:,0]) & (centerline[:, 0] < 96) & (0 < centerline[:,1]) & (centerline[:,1] < 67)
         centerline = np.array(centerline[mask])
         
         # Calculate curvature of centerline
         centerline_curvature = self.calculate_curvature(x=centerline[:,0], y=centerline[:,1])
+        
+        if len(centerline_curvature) == 0:
+            return centerline, np.empty(0)
         
         # Optimize trajectory
         optimized_trajectory = self.optimize_trajectory_optimized(centerline, centerline_curvature)
