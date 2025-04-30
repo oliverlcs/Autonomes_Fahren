@@ -19,31 +19,35 @@ def run(env, input_controller: InputController):
     time.sleep(0.5)
 
     while not input_controller.quit:
-        centerline, optimized_trajectory, test_points = path_planning.plan(
+        optimized_trajectory, optimized_trajectory_curvature = path_planning.plan(
             info["left_lane_boundary"], info["right_lane_boundary"]
         )
         # way_points = np.asarray([])
         cv_image = np.asarray(state_image, dtype=np.uint8)
-        centerline = np.array(centerline, dtype=np.float32)
-        
-        for point in centerline:
-            if 0 < point[0] < 96 and 0 < point[1] < 96:
-                cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
-                # cv_image[67,48] = [0,0,0]
-                # cv_image[84,48] = [255,255,255]
         for point in info["left_lane_boundary"]:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [255, 0, 0]
         for point in info["right_lane_boundary"]:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
-        # if 0 < point_test[0] < 96 and 0 < point_test[1] < 84:
-        #     cv_image[int(point_test[1]), int(point_test[0])] = [255, 0, 0]
         for point in optimized_trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 255, 0]
-        # for point in test_points:
-        #      if 0 < point[0] < 96 and 0 < point[1] < 84:
+                
+        # radius, x_car, y_car = 35.0, 48.0, 64.0
+        # r_45_deg = radius*0.707
+        # points_circle = [[x_car, y_car+radius], [x_car, y_car-radius], [x_car+radius, y_car], [x_car-radius, y_car], [x_car+r_45_deg, y_car+r_45_deg], [x_car+r_45_deg, y_car-r_45_deg], [x_car-r_45_deg, y_car+r_45_deg], [x_car-r_45_deg, y_car-r_45_deg]]
+        # cv_image[64, 48] = [0, 0, 0]
+        # for point in points_circle:
+        #     if 0 < point[0] < 96 and 0 < point[1] < 84:
+        #         cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
+                
+        # radius = 5.0
+        # r_45_deg = radius*0.707     
+        # points_circle_small = [[x_car, y_car+radius], [x_car, y_car-radius], [x_car+radius, y_car], [x_car-radius, y_car], [x_car+r_45_deg, y_car+r_45_deg], [x_car+r_45_deg, y_car-r_45_deg], [x_car-r_45_deg, y_car+r_45_deg], [x_car-r_45_deg, y_car-r_45_deg]]
+        # cv_image[64, 48] = [0, 0, 0]
+        # for point in points_circle_small:
+        #     if 0 < point[0] < 96 and 0 < point[1] < 84:
         #         cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
             
 

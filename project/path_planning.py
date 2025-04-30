@@ -23,10 +23,10 @@ class PathPlanning:
             return points_lane
         except ValueError:
             print("ValueError: nc = 4 > m = 3")
-            return []
+            return np.empty((0, 2))
         except IndexError:
             print("IndexError: index -1 is out of bounds for axis 0 with size 0")
-            return []
+            return np.empty((0, 2))
     
     def calculate_centerline(self, left_lane, right_lane):
         centerline = np.array(np.mean([left_lane, right_lane], axis=0))
@@ -102,6 +102,20 @@ class PathPlanning:
             optimized_trajectory[i] = centerline[i] + normal[i] * shift
         
         return optimized_trajectory
+    
+    def filter_unitl_jumps(self, trajectory: np.array, threshold):
+        trajectory = np.array(trajectory).reshape(-1, 2)  # Ensure 2D shape
+
+        if trajectory.shape[0] == 0:
+            return np.empty((0, 2))  # Return empty result if no points
+
+        result_trajectory = [trajectory[0]]
+        for i in range(1, len(trajectory)):
+            dist = np.linalg.norm(trajectory[i] - trajectory[i - 1])
+            if dist > threshold:
+                break
+            result_trajectory.append(trajectory[i])
+        return np.array(result_trajectory)
         
     def plan(self, left_lane_points, right_lane_points):
         
@@ -124,7 +138,7 @@ class PathPlanning:
         centerline = np.array(centerline[mask])
         
         # Calculate curvature of centerline
-        centerline_curvature = self.calculate_curvature(centerline[:,0], centerline[:,1])
+        centerline_curvature = self.calculate_curvature(x=centerline[:,0], y=centerline[:,1])
         
         # Optimize trajectory
         optimized_trajectory = self.optimize_trajectory_optimized(centerline, centerline_curvature)
@@ -132,8 +146,18 @@ class PathPlanning:
         # Smooth trajectory
         optimized_trajectory = self.adjust_lanes(optimized_trajectory, smoothing_factor=0.2, sample_points=20)
         
+        # Filter points in trajectory so curves aren't too early detected
         mask_trajectory = (0 < optimized_trajectory[:,0]) & (optimized_trajectory[:, 0] < 96) & (30 < optimized_trajectory[:,1]) & (optimized_trajectory[:,1] < 67)
         optimized_trajectory = np.array(optimized_trajectory[mask_trajectory])
         
-           
-        return centerline, optimized_trajectory, test_points
+        # Filter sudden jumps in trajectory
+        optimized_trajectory = self.filter_unitl_jumps(optimized_trajectory, 10)
+        
+        if len(optimized_trajectory) == 0:
+            return centerline, centerline_curvature
+        
+        # Calculate curvature for each point of optimized_trajectory
+        optimized_trajectory_curvature = self.calculate_curvature(x=optimized_trajectory[:,0], y=optimized_trajectory[:,1])
+        
+        return optimized_trajectory, optimized_trajectory_curvature
+        # return centerline, optimized_trajectory, test_points
