@@ -3,6 +3,8 @@ from scipy.interpolate import make_splprep, splev, splprep
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
+from scipy.spatial import ConvexHull
+from matplotlib.path import Path
 
 class PathPlanning:
 
@@ -49,7 +51,11 @@ class PathPlanning:
         except Exception as e:
             print("Curvature calculation error: x or y too small to calculate gradient")
             return np.empty(0)
-    
+
+    def apply_mask(self, lane: np.array, min_x, max_x, min_y, max_y):
+        # x goes from 0 - 96, y goes from 0 - 84
+        mask = (min_x < lane[:,0]) & (lane[:, 0] < max_x) & (min_y < lane[:,1]) & (lane[:,1] < max_y)
+        return np.array(lane[mask])
     
     def optimize_trajectory(self, centerline, centerline_curvature):
         optimized_trajectory = []
@@ -72,9 +78,7 @@ class PathPlanning:
             normal = np.array([-tangent[1], tangent[0]])
             
             # Amount of shift based on curvature
-            print(f"{centerline_curvature[i]*200:.5f}")
             shift = np.clip(centerline_curvature[i] * 200, -7, 7)
-            
             
             # Shift point along the normal
             new_point = centerline[i] + normal * shift
@@ -88,7 +92,6 @@ class PathPlanning:
         centerline = np.asarray(centerline)
         centerline_curvature = np.asarray(centerline_curvature)
         
-        # print(f"{np.sum(np.abs(centerline_curvature)):.5f}")
         if np.sum(np.abs(centerline_curvature)) < 0.0001:
             return centerline
         
@@ -113,32 +116,100 @@ class PathPlanning:
         
         return optimized_trajectory
     
-    def filter_unitl_jumps(self, trajectory: np.array, threshold):
-        trajectory = np.array(trajectory).reshape(-1, 2)  # Ensure 2D shape
+    def is_point_in_boundary(self, edges, x, y):
+        # Ray tracing algorithm to calculate if certain point is inside boundaries
+        cnt = 0
+        for edge in edges:
+            (x1, y1), (x2, y2) = edge
+            if (y < y1) != (y < y2) and x < x1 + ((y - y1) / (y2 - y1) * (x2 - x1)):
+                cnt += 1
+        return cnt % 2 == 1
+    
+    def is_point_in_boundary_opt(self, edges, x, y):
+        # Ray tracing algorithm to calculate if certain point is inside boundaries - optimized
+        inside = False
+        for (x1, y1), (x2, y2) in edges:
+            if (y < y1) != (y < y2):
+                if x <= x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+                    inside = not inside
+        return inside
+        
+    def get_hull_points(self, left_lane):
+        try:
+            hull = ConvexHull(left_lane)
+            hull_points = left_lane[hull.vertices]
+            
+            return hull_points
+        except:
+            return []
+        
+    def filter_outside_track_points(self, left_lane, trajectory, centerline_curvature):
+        if np.sum(centerline_curvature) < 0: # only on left turns
+            try:
+                hull = ConvexHull(left_lane)
+                hull_points = left_lane[hull.vertices]
+
+                # mask = Path.contains_points(trajectory)
+                # return trajectory[mask]
+
+                edges = list(zip(hull_points, np.roll(hull_points, -1, axis=0)))
+
+                filtered_trajectory = [
+                    point for point in trajectory
+                    if not self.is_point_in_boundary_opt(edges, point[0], point[1])
+                ]
+                filtered_trajectory = np.array(filtered_trajectory)
+                filtered_trajectory = self.apply_mask(filtered_trajectory, 48-10, 48+10, 0, 83)
+
+                return np.array(filtered_trajectory)
+            except Exception as e:
+                return trajectory
+        else:
+            return trajectory
+    
+    def filter_jumps(self, trajectory: np.array, threshold):
+        trajectory = np.asarray(trajectory).reshape(-1, 2)  # Ensure 2D shape
 
         if trajectory.shape[0] == 0:
             return np.empty((0, 2))  # Return empty result if no points
-
-        result_trajectory = [trajectory[0]]
-        for i in range(1, len(trajectory)):
-            dist = np.linalg.norm(trajectory[i] - trajectory[i - 1])
-            if dist > threshold:
+        
+        car_pos = np.array([48, 64])
+        used_indices = set()
+        start_idx = np.argmin(np.linalg.norm(trajectory - car_pos, axis=1))
+        
+        result_trajectory = [trajectory[start_idx]]
+        used_indices.add(start_idx)
+        current_point = trajectory[start_idx]
+        
+        while len(used_indices) < len(trajectory):
+            min_dist = 10
+            next_idx = None
+            for i, point in enumerate(trajectory):
+                if i in used_indices:
+                    continue
+                dist = np.linalg.norm(point - current_point)
+                if dist < min_dist:
+                    min_dist = dist
+                    next_idx = i
+                    
+            if next_idx is None or min_dist > threshold:
                 break
-            result_trajectory.append(trajectory[i])
+
+            current_point = trajectory[next_idx]
+            result_trajectory.append(current_point)
+            used_indices.add(next_idx)
+
+        if len(result_trajectory) < 5:
+            return trajectory
+
         return np.array(result_trajectory)
         
     def plan(self, left_lane_points, right_lane_points):
         
         # Adjust and sample lanes
         left_lane = self.adjust_lanes(np.array(left_lane_points), sample_points=15)
+        
         right_lane = self.adjust_lanes(np.array(right_lane_points), sample_points=15)
-        
-        y = 30
-        test_points = [[10, y], [20, y], [30, y], [40, y], [50, y], [60, y], [70, y], [80, y]]
-        
-        # check for empty lanes when outside of a a track
-        # if len(left_lane) == 0 or len(right_lane) == 0:
-        #     return [], [], test_points
         
         # Calculate centerline
         centerline = self.calculate_centerline(left_lane, right_lane)
@@ -146,9 +217,8 @@ class PathPlanning:
         if centerline is None or centerline.shape[0] == 0:
             return np.empty((0, 2)), np.empty(0)
         
-        # Clip centerline to stay above car        
-        mask = (0 < centerline[:,0]) & (centerline[:, 0] < 96) & (0 < centerline[:,1]) & (centerline[:,1] < 67)
-        centerline = np.array(centerline[mask])
+        # Clip centerline to stay above car   
+        centerline = self.apply_mask(centerline, 0, 96, 0, 67)
         
         # Calculate curvature of centerline
         centerline_curvature = self.calculate_curvature(x=centerline[:,0], y=centerline[:,1])
@@ -163,11 +233,10 @@ class PathPlanning:
         optimized_trajectory = self.adjust_lanes(optimized_trajectory, smoothing_factor=0.2, sample_points=20)
         
         # Filter points in trajectory so curves aren't too early detected
-        mask_trajectory = (0 < optimized_trajectory[:,0]) & (optimized_trajectory[:, 0] < 96) & (30 < optimized_trajectory[:,1]) & (optimized_trajectory[:,1] < 67)
-        optimized_trajectory = np.array(optimized_trajectory[mask_trajectory])
+        optimized_trajectory = self.apply_mask(optimized_trajectory, 0, 96, 30, 67)
         
-        # Filter sudden jumps in trajectory
-        optimized_trajectory = self.filter_unitl_jumps(optimized_trajectory, 10)
+        # Keep only valid points (i.e. inside track boundaries and not in the past)
+        optimized_trajectory = self.filter_outside_track_points(left_lane, optimized_trajectory, centerline_curvature)
         
         if len(optimized_trajectory) == 0:
             return centerline, centerline_curvature

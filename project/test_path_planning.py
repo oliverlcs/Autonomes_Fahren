@@ -32,24 +32,7 @@ def run(env, input_controller: InputController):
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
         for point in optimized_trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
-                cv_image[int(point[1]), int(point[0])] = [0, 255, 0]
-                
-        # radius, x_car, y_car = 35.0, 48.0, 64.0
-        # r_45_deg = radius*0.707
-        # points_circle = [[x_car, y_car+radius], [x_car, y_car-radius], [x_car+radius, y_car], [x_car-radius, y_car], [x_car+r_45_deg, y_car+r_45_deg], [x_car+r_45_deg, y_car-r_45_deg], [x_car-r_45_deg, y_car+r_45_deg], [x_car-r_45_deg, y_car-r_45_deg]]
-        # cv_image[64, 48] = [0, 0, 0]
-        # for point in points_circle:
-        #     if 0 < point[0] < 96 and 0 < point[1] < 84:
-        #         cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
-                
-        # radius = 5.0
-        # r_45_deg = radius*0.707     
-        # points_circle_small = [[x_car, y_car+radius], [x_car, y_car-radius], [x_car+radius, y_car], [x_car-radius, y_car], [x_car+r_45_deg, y_car+r_45_deg], [x_car+r_45_deg, y_car-r_45_deg], [x_car-r_45_deg, y_car+r_45_deg], [x_car-r_45_deg, y_car-r_45_deg]]
-        # cv_image[64, 48] = [0, 0, 0]
-        # for point in points_circle_small:
-        #     if 0 < point[0] < 96 and 0 < point[1] < 84:
-        #         cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
-            
+                cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
 
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
         cv_image = cv2.resize(cv_image, (cv_image.shape[1] * 6, cv_image.shape[0] * 6))
