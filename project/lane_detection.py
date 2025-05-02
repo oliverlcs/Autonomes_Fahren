@@ -36,7 +36,7 @@ class LaneDetection:
 
 
         # --- Schritt 3: Starke Kantenpunkte extrahieren ---
-        threshold = np.percentile(sobel_magnitude, 93)  # Nur die stärksten 7% der Kanten nehmen
+        threshold = np.percentile(sobel_magnitude, 93.5)  # Nur die stärksten 6.5% der Kanten nehmen
         edges = sobel_magnitude > threshold
 
         # --- Schritt 4: Kantenpunkte sammeln als Linienpunkte ---
@@ -44,7 +44,6 @@ class LaneDetection:
         lines = np.column_stack((y_coords, x_coords))  # Form: [y, x] (wie erwartet)
 
         np.set_printoptions(threshold=np.inf)
-        print(lines)
 
         # Gruppiere die Linien basierend auf ihrer Nähe
         left_lines = []
@@ -67,14 +66,10 @@ class LaneDetection:
         if points.size == 0:
             return [], []
 
-        # Entferne Punkte unterhalb des Autos (y >= car_position[1])
-        points = points[points[:, 0] < self.car_position[1]+19]
-
-        #print(points)
         right_points = np.array([])
         left_points = np.array([])
 
-        # Finde alle Punkte auf Höhe y=62 (mit Toleranz von +/-1 Pixel)
+        # Finde alle Punkte auf Höhe y=80
         target_y = 80
         match = (points[:, 0] >= target_y) & (points[:, 0] <= target_y)
         # Filtere die Punkte, die auf der Zielhöhe 80 liegen
@@ -109,6 +104,7 @@ class LaneDetection:
             # Abfrage, ab alle punkte auf einem punkt  liegen
             if np.all((border_points[:, 0] >= avg_y - 2) & (border_points[:, 0] <= avg_y + 2)):  # Prüfe, ob alle y-Werte in avg_y ± 2 liegen
                 right_points = np.vstack([right_points, border_points])  # Alle Punkte in right_points einsortieren
+
             else:
 
                 for point in border_points:
@@ -117,23 +113,33 @@ class LaneDetection:
                     else:  # y größer oder gleich Durchschnitt
                         left_points = np.vstack([left_points, point])
         else:
-            if np.any(border_points[:, 1] == 5):  # Prüfe, ob es Punkte mit x = 0 gibt
-                points_with_x_5 = border_points[border_points[:, 1] == 5]
+            if np.any(border_points[:, 1] <= 5):  # Prüfe, ob es Punkte mit x = 0 gibt
+                points_with_x_5 = border_points[border_points[:, 1] <= 5]
                 avg_y_for_x_5 = np.mean(points_with_x_5[:, 0])
+                self.skip_max_x_point = False
                 for point in border_points:
-                    if point[1] == 5:  # x = 0
+                    if point[1] <= 5:  # x = 0
 
-                        if(point[0] < avg_y_for_x_5):
+                        if(point[0] < avg_y_for_x_5 - 5):
                             right_points = np.vstack([right_points, point])
                         else:
                             left_points = np.vstack([left_points, point])
                     else:  # x > 0
-                        right_points = np.vstack([right_points, point])
+                        if not self.skip_max_x_point:
+                            # Finde den Punkt mit dem größten x-Wert
+                            max_x_point = border_points[np.argmax(border_points[:, 1])]
+
+                            # Füge den Punkt zu right_points hinzu
+                            right_points = np.vstack([right_points, max_x_point])
+                        #right_points = np.vstack([right_points, point])
             else:
                 avg_sum = np.mean(border_points[:, 0] + border_points[:, 1])  # Durchschnitt von x + y
                 if np.all((border_points[:, 0] + border_points[:, 1] >= avg_sum - 2) &
                           (border_points[:, 0] + border_points[:, 1] <= avg_sum + 2)):  # Prüfe, ob alle Werte in avg_sum ± 2 liegen
-                    left_points = np.vstack([left_points, border_points])  # Alle Punkte in left_points einsortieren
+                    if np.all(border_points[:, 0] <= 6):
+                        pass
+                    else:
+                        left_points = np.vstack([left_points, border_points])  # Alle Punkte in left_points einsortieren
                 elif np.any(border_points[:, 0] == 0) and np.any(border_points[:, 0] != 0):
                     max_sum_point = border_points[np.argmax(border_points[:, 0] + border_points[:, 1])]
                     right_points = np.vstack([right_points, max_sum_point])
@@ -154,8 +160,6 @@ class LaneDetection:
 
             dist_right = self.short_dist(point, right_points)
 
-            #print(dist_left, dist_right)
-
             if dist_left < dist_right:
                 left_points = np.vstack([left_points, point])
             else:
@@ -169,9 +173,9 @@ class LaneDetection:
         x = points[:, 1]
 
         # Masken für die drei Randlinien
-        mask_left   = (x == 5)  & (y >= 0) & (y <= 62)
+        mask_left   = (x <= 5)  & (y >= 0) & (y < 80)
         mask_top    = (y == 0)  & (x >= 0) & (x <= 95)
-        mask_right  = (x == 90) & (y >= 0) & (y <= 62)
+        mask_right  = (x >= 90) & (y >= 0) & (y < 80)
 
         # Kombinierte Maske
         mask = mask_left | mask_top | mask_right
