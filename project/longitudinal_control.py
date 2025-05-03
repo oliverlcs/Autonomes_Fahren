@@ -38,8 +38,8 @@ class LongitudinalControl:
         brake = max(0, -output)  # Nur negative Werte für Bremse
 
         # Verhindere starkes Gasgeben und Lenken gleichzeitig
-        if abs(steering_angle) > 0.5:  # Beispielschwelle für starkes Lenken
-            gas *= 0.5
+        if abs(steering_angle) > 0.0:  # Beispielschwelle für starkes Lenken
+            gas *= 0.0
 
         return gas, brake
 
@@ -58,14 +58,44 @@ class LongitudinalControl:
         min_speed = 30   # Minimale Geschwindigkeit (z. B. 30 km/h)
 
         # Falls curvature ein Array ist, berechne eine Metrik (z. B. den maximalen Krümmungswert)
-        if isinstance(curvature, (np.ndarray, list)):
-            if len(curvature) == 0:
-                curvature_value = 0  # Standardwert, wenn keine Krümmung vorhanden ist
-            else:
-                curvature_value = np.max(np.abs(curvature))  # Maximaler Krümmungswert
+
+        if len(curvature) == 0:
+            curvature_value = 0  # Standardwert, wenn keine Krümmung vorhanden ist
         else:
-            curvature_value = abs(curvature)  # Einzelner Krümmungswert
+            curvature_value = self.curvature_score(curvature)
 
         # Berechne die Zielgeschwindigkeit basierend auf der Krümmung
         target_speed = max(min_speed, max_speed * (1 - curvature_value))
+
         return target_speed
+
+    def curvature_score(self, points: np.ndarray) -> float:
+        """
+        Hochperformante Krümmungsabschätzung einer 2D-Linie.
+        0 = Gerade, 1 = maximale Krümmung (180° Richtungsänderung).
+
+        Args:
+            points (np.ndarray): Nx2-Array mit 2D-Koordinaten.
+
+        Returns:
+            float: Krümmung zwischen 0.0 und 1.0
+        """
+        if points.shape[0] < 3:
+            return 0.0
+
+        # Richtungsvektoren berechnen
+        d = np.diff(points, axis=0)
+
+        # Normalisieren
+        norm = np.linalg.norm(d, axis=1)
+        d_unit = d / norm[:, None]
+
+        # Skalarprodukt benachbarter Einheitsvektoren → cos(θ)
+        dot = np.einsum('ij,ij->i', d_unit[:-1], d_unit[1:])
+        angles = np.arccos(np.clip(dot, -1.0, 1.0))  # numerisch stabil
+
+        # Gesamtwinkeländerung
+        total_angle = angles.sum()
+
+        # Normierung auf maximalen möglichen Wert (pi)
+        return min(1.0, total_angle / np.pi)
