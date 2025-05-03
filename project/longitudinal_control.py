@@ -2,7 +2,7 @@ import numpy as np
 
 
 class LongitudinalControl:
-    def __init__(self, kp=0.1, ki=0.01, kd=0.05):
+    def __init__(self, kp=0.1, ki=0.0, kd=0.02):
         # PID-Regler-Parameter
         self.kp = kp
         self.ki = ki
@@ -33,13 +33,18 @@ class LongitudinalControl:
         output = self.kp * error + self.ki * self.integral + self.kd * derivative
         self.previous_error = error
 
+        # Gewichtung für Gas und Bremse
+        gas_weight = 4.0  # Verstärkt die Gasreaktion
+        brake_weight = 0.08  # Bremse bleibt unverändert
+
+
         # Gas und Bremse berechnen
-        gas = max(0, output)  # Nur positive Werte für Gas
-        brake = max(0, -output)  # Nur negative Werte für Bremse
+        gas = max(0, output * gas_weight)  # Nur positive Werte für Gas
+        brake = max(0, -output * brake_weight)  # Nur negative Werte für Bremse
 
         # Verhindere starkes Gasgeben und Lenken gleichzeitig
         if abs(steering_angle) > 0.0:  # Beispielschwelle für starkes Lenken
-            gas *= 0.0
+            gas *= 0.01
 
         return gas, brake
 
