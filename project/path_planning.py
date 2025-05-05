@@ -205,7 +205,17 @@ class PathPlanning:
         return np.array(result_trajectory)
 
     def calculate_curvature_output(self, points: np.ndarray) -> float:
-        #Funktion übertragen aus longitudinal_control.py, um gesamt Krümmung zu berechnen
+        """
+        #     Funktion übertragen aus longitudinal_control.py, um gesamt Krümmung zu berechnen
+        #     Hochperformante Krümmungsabschätzung einer 2D-Linie.
+        #     0 = Gerade, 1 = maximale Krümmung (180° Richtungsänderung).
+
+        #     Args:
+        #         points (np.ndarray): Nx2-Array mit 2D-Koordinaten.
+
+        #     Returns:
+        #         float: Krümmung zwischen 0.0 und 1.0
+        #     """
 
         if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 2:
             return 0.0
