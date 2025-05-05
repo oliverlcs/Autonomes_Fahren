@@ -25,6 +25,7 @@ def run(env, input_controller: InputController):
     fig = plt.figure()
     plt.ion()
     plt.show()
+    
     speed_history = []
     target_speed_history = []
 
@@ -33,16 +34,18 @@ def run(env, input_controller: InputController):
         trajectory, curvature = path_planning.plan(
             left_lane_boundaries, right_lane_boundaries
         )
+        trajectory, curvature = path_planning.plan(info["left_lane_boundary"], info["right_lane_boundary"])
         steering_angle = lateral_control.control(trajectory, info["speed"])
         target_speed = longitudinal_control.predict_target_speed(curvature)
         acceleration, braking = longitudinal_control.control(
-            info["speed"], target_speed, steering_angle
+           info["speed"], target_speed, steering_angle
         )
 
         speed_history.append(info["speed"])
         target_speed_history.append(target_speed)
 
-        cv_image = np.asarray(lane_detection.debug_image, dtype=np.uint8)
+        # cv_image = np.asarray(lane_detection.debug_image, dtype=np.uint8)
+        cv_image = np.asarray(state_image, dtype=np.uint8)
         for point in trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
@@ -62,6 +65,8 @@ def run(env, input_controller: InputController):
             pass
 
         # Step the environment
+        # a = [steering_angle, acceleration, braking]
+        input_controller.update()
         a = [steering_angle, acceleration, braking]
         state_image, r, done, trunc, info = env.step(a)
         total_reward += r

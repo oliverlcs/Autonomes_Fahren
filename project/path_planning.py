@@ -24,10 +24,10 @@ class PathPlanning:
             
             return points_lane
         except ValueError:
-            print("ValueError: nc = 4 > m = 3")
+            # print("ValueError: nc = 4 > m = 3")
             return np.empty((0, 2))
         except IndexError:
-            print("IndexError: index -1 is out of bounds for axis 0 with size 0")
+            # print("IndexError: index -1 is out of bounds for axis 0 with size 0")
             return np.empty((0, 2))
     
     def calculate_centerline(self, left_lane: np.array, right_lane: np.array):
@@ -36,7 +36,7 @@ class PathPlanning:
             centerline = np.array(np.mean([left_lane, right_lane], axis=0))
             return centerline
         else:
-            print("Incompatible shapes: left_lane and right_lane must have the same length")
+            # print("Incompatible shapes: left_lane and right_lane must have the same length")
             centerline = np.empty(0) 
         
     
@@ -49,7 +49,7 @@ class PathPlanning:
             curvature = (dx * dyy - dy * dxx) / np.power(dx**2 + dy**2, 1.5)
             return np.array(curvature)
         except Exception as e:
-            print("Curvature calculation error: x or y too small to calculate gradient")
+            # print("Curvature calculation error: x or y too small to calculate gradient")
             return np.empty(0)
 
     def apply_mask(self, lane: np.array, min_x, max_x, min_y, max_y):
