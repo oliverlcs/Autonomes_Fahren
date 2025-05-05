@@ -43,8 +43,11 @@ class LateralControl:
         # steering = -1: driving left
         # steering = 1: driving right
         
+        if len(trajectory) == 0:
+            return 0
+        
         steering, trajectory, target_point  = self.pure_pursuit_control(trajectory, speed, self._car_position)
         
-        return steering, target_point
+        return steering
         # return steering, trajectory, target_point
 
