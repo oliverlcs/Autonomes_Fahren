@@ -85,6 +85,9 @@ class LongitudinalControl:
         Returns:
             float: Krümmung zwischen 0.0 und 1.0
         """
+        if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 2:
+            return 0.0
+
         if points.shape[0] < 3:
             return 0.0
 
