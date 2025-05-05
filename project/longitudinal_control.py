@@ -60,7 +60,7 @@ class LongitudinalControl:
         """
         # Zielgeschwindigkeit basierend auf der Krümmung
         max_speed = 100  # Maximale Geschwindigkeit (z. B. 100 km/h)
-        min_speed = 30   # Minimale Geschwindigkeit (z. B. 30 km/h)
+        min_speed = 45   # Minimale Geschwindigkeit (z. B. 30 km/h)
 
         # Falls curvature ein Array ist, berechne eine Metrik (z. B. den maximalen Krümmungswert)
 
