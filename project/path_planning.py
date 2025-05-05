@@ -234,12 +234,17 @@ class PathPlanning:
         
         # Filter points in trajectory so curves aren't too early detected
         optimized_trajectory = self.apply_mask(optimized_trajectory, 0, 96, 30, 67)
+        centerline_fb = self.apply_mask(centerline, 0, 96, 30, 67)
         
         # Keep only valid points (i.e. inside track boundaries and not in the past)
         optimized_trajectory = self.filter_outside_track_points(left_lane, optimized_trajectory, centerline_curvature)
+        centerline_fb = self.filter_outside_track_points(left_lane, centerline_fb, centerline_curvature)
+        
+        # if np.sum(np.linalg.norm(np.diff(optimized_trajectory, axis=0), axis=1)) / (len(optimized_trajectory) - 1) > 5:
+        #     return centerline_fb, centerline_curvature
         
         if len(optimized_trajectory) == 0:
-            return centerline, centerline_curvature
+            return centerline_fb, centerline_curvature
         
         # Calculate curvature for each point of optimized_trajectory
         optimized_trajectory_curvature = self.calculate_curvature(x=optimized_trajectory[:,0], y=optimized_trajectory[:,1])
