@@ -24,8 +24,7 @@ def run(env, input_controller: InputController):
 
     while not input_controller.quit:
         target_speed = longitudinal_control.predict_target_speed(
-            info["trajectory"], info["speed"], input_controller.steer
-        )
+            info["trajectory"])
         acceleration, braking = longitudinal_control.control(
             info["speed"], target_speed, input_controller.steer
         )
