@@ -53,7 +53,7 @@ class LongitudinalControl:
         Berechnet die Zielgeschwindigkeit basierend auf der Straßenkrümmung.
 
         Args:
-            curvature (np.ndarray): Array von Krümmungswerten entlang der optimalen Linie.
+            curvature (float): Krümmungswert der Kurve.
 
         Returns:
             float: Zielgeschwindigkeit.
@@ -62,48 +62,42 @@ class LongitudinalControl:
         max_speed = 100  # Maximale Geschwindigkeit (z. B. 100 km/h)
         min_speed = 45   # Minimale Geschwindigkeit (z. B. 45 km/h)
 
-        # Falls curvature ein Array ist, berechne eine Metrik (z. B. den maximalen Krümmungswert)
-
-        if len(curvature) == 0:
-            curvature_value = 0  # Standardwert, wenn keine Krümmung vorhanden ist
-        else:
-            curvature_value = self.curvature_score(curvature)
-
         # Berechne die Zielgeschwindigkeit basierend auf der Krümmung
-        target_speed = max(min_speed, max_speed * (1 - curvature_value))
+        target_speed = max(min_speed, max_speed * (1 - curvature))
 
         return target_speed
 
-    def curvature_score(self, points: np.ndarray) -> float:
-        """
-        Hochperformante Krümmungsabschätzung einer 2D-Linie.
-        0 = Gerade, 1 = maximale Krümmung (180° Richtungsänderung).
+    #Funktion übertragen in pathplanning, um gegebene Objektübergaben beizubehalten
+    # def curvature_score(self, points: np.ndarray) -> float:
+    #     """
+    #     Hochperformante Krümmungsabschätzung einer 2D-Linie.
+    #     0 = Gerade, 1 = maximale Krümmung (180° Richtungsänderung).
 
-        Args:
-            points (np.ndarray): Nx2-Array mit 2D-Koordinaten.
+    #     Args:
+    #         points (np.ndarray): Nx2-Array mit 2D-Koordinaten.
 
-        Returns:
-            float: Krümmung zwischen 0.0 und 1.0
-        """
-        if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 2:
-            return 0.0
+    #     Returns:
+    #         float: Krümmung zwischen 0.0 und 1.0
+    #     """
+    #     if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 2:
+    #         return 0.0
 
-        if points.shape[0] < 3:
-            return 0.0
+    #     if points.shape[0] < 3:
+    #         return 0.0
 
-        # Richtungsvektoren berechnen
-        d = np.diff(points, axis=0)
+    #     # Richtungsvektoren berechnen
+    #     d = np.diff(points, axis=0)
 
-        # Normalisieren
-        norm = np.linalg.norm(d, axis=1)
-        d_unit = d / norm[:, None]
+    #     # Normalisieren
+    #     norm = np.linalg.norm(d, axis=1)
+    #     d_unit = d / norm[:, None]
 
-        # Skalarprodukt benachbarter Einheitsvektoren → cos(θ)
-        dot = np.einsum('ij,ij->i', d_unit[:-1], d_unit[1:])
-        angles = np.arccos(np.clip(dot, -1.0, 1.0))  # numerisch stabil
+    #     # Skalarprodukt benachbarter Einheitsvektoren → cos(θ)
+    #     dot = np.einsum('ij,ij->i', d_unit[:-1], d_unit[1:])
+    #     angles = np.arccos(np.clip(dot, -1.0, 1.0))  # numerisch stabil
 
-        # Gesamtwinkeländerung
-        total_angle = angles.sum()
+    #     # Gesamtwinkeländerung
+    #     total_angle = angles.sum()
 
-        # Normierung auf maximalen möglichen Wert (pi)
-        return min(1.0, total_angle / np.pi)
+    #     # Normierung auf maximalen möglichen Wert (pi)
+    #     return min(1.0, total_angle / np.pi)
