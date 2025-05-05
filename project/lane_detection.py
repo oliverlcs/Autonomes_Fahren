@@ -133,7 +133,7 @@ class LaneDetection:
         if np.all(border_points[:, 1] < border_points[:, 0]):  # Prüfe, ob x < y für alle Punkte in border_points
             avg_y = np.mean(border_points[:, 0])  # Durchschnitt aller y-Werte
             # Abfrage, ab alle punkte auf einem punkt  liegen
-            if np.all((border_points[:, 0] >= avg_y - 2) & (border_points[:, 0] <= avg_y + 2)):  # Prüfe, ob alle y-Werte in avg_y ± 2 liegen
+            if np.all((border_points[:, 0] >= avg_y - 4) & (border_points[:, 0] <= avg_y + 4)):  # Prüfe, ob alle y-Werte in avg_y ± 2 liegen
                 right_points = np.vstack([right_points, border_points])  # Alle Punkte in right_points einsortieren
 
             else:
