@@ -3,10 +3,26 @@ from scipy import ndimage
 
 class LaneDetection:
     def __init__(self):
+        """
+        Initialisiert die LaneDetection-Klasse.
+
+        Attributes:
+            debug_image (None): Debug-Bild zur Visualisierung.
+            car_position (np.ndarray): Position des Fahrzeugs im Bild.
+        """
         self.debug_image = None
         self.car_position = np.array([48, 64])
 
     def detect(self, image: np.ndarray):
+        """
+        Erkennt Fahrspuren im gegebenen Bild.
+
+        Args:
+            image (np.ndarray): Eingabebild als 2D- oder 3D-Array.
+
+        Returns:
+            tuple: Zwei Arrays mit Punkten der linken und rechten Fahrspur.
+        """
         # --- Schritt 1: In Graustufen umwandeln ---
         if len(image.shape) == 3 and image.shape[2] == 3:
             # RGB -> Grau: einfache Durchschnittsbildung
@@ -58,6 +74,15 @@ class LaneDetection:
         return left_lines, right_lines
 
     def group_lines(self, points):
+        """
+        Gruppiert Linienpunkte basierend auf ihrer Nähe.
+
+        Args:
+            points (np.ndarray): Array mit Punkten der Form [y, x].
+
+        Returns:
+            tuple: Arrays mit Punkten der linken und rechten Fahrspur.
+        """
         # Konvertiere zu NumPy-Array für Performance
         points = np.array(points)
         # Entferne alle Punkte mit y > 80
@@ -202,6 +227,15 @@ class LaneDetection:
         return left_points, right_points
 
     def find_border_points(self, points):
+        """
+        Findet Punkte entlang der Bildränder.
+
+        Args:
+            points (np.ndarray): Array mit Punkten der Form [y, x].
+
+        Returns:
+            np.ndarray: Punkte, die sich entlang der Bildränder befinden.
+        """
         # points: numpy array der Form (N, 2), wobei jede Zeile [y, x] ist
         y = points[:, 0]
         x = points[:, 1]
@@ -217,12 +251,32 @@ class LaneDetection:
         return points[mask]
 
     def short_dist(self, punkt, punkte_array):
+        """
+        Berechnet die kürzeste Distanz zwischen einem Punkt und einem Array von Punkten.
+
+        Args:
+            punkt (np.ndarray): Einzelner Punkt [y, x].
+            punkte_array (np.ndarray): Array von Punkten.
+
+        Returns:
+            float: Kürzeste Distanz.
+        """
         if punkte_array.size == 0:  # Überprüfen, ob das Array leer ist
             return float('inf')  # Unendliche Distanz zurückgeben
         abstaende = np.linalg.norm(punkte_array - punkt, axis=1)
         return np.min(abstaende)
 
     def cluster_points(self, points, tolerance=2):
+        """
+        Gruppiert Punkte in Cluster basierend auf einer Toleranz.
+
+        Args:
+            points (np.ndarray): Array von Punkten der Form [y, x].
+            tolerance (int): Maximale Toleranz für den Abstand zwischen Punkten.
+
+        Returns:
+            list: Liste von Clustern, wobei jedes Cluster ein Array von Punkten ist.
+        """
         if len(points) == 0:
             return []
 

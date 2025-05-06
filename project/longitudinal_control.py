@@ -3,12 +3,25 @@ import numpy as np
 
 class LongitudinalControl:
     def __init__(self, kp=0.1, ki=0.0, kd=0.02):
-        # PID-Regler-Parameter
+        """
+        Initialisiert die LongitudinalControl-Klasse mit den PID-Regler-Parametern.
+
+        Args:
+            kp (float): Proportionaler Verstärkungsfaktor (Standard: 0.1).
+            ki (float): Integraler Verstärkungsfaktor (Standard: 0.0).
+            kd (float): Differentieller Verstärkungsfaktor (Standard: 0.02).
+
+        Attributes:
+            kp (float): Proportionaler Verstärkungsfaktor.
+            ki (float): Integraler Verstärkungsfaktor.
+            kd (float): Differentieller Verstärkungsfaktor.
+            previous_error (float): Fehlerwert der vorherigen Iteration.
+            integral (float): Akkumulierter Fehler für den integralen Anteil.
+        """
         self.kp = kp
         self.ki = ki
         self.kd = kd
 
-        # PID-Regler-Zustände
         self.previous_error = 0
         self.integral = 0
 

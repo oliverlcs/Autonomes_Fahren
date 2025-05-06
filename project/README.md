@@ -1,65 +1,23 @@
 # Abschlussprojekt: Autonomer Rennwagen
 
-Dieses "Framework" enthält eine grundlegende Struktur für die Umsetzung einer modularen Pipeline für die Gymnasium Car Racing Simulation ([link](https://gymnasium.farama.org/environments/box2d/car_racing/)).
+## Spurerkennung
 
-## 0. Requirements
 
-- Python >3.12
+## Pfadplanung
+**Gesamtkrümmungsberechnung**
+    Die Funktion **`calculate_curvature_output`** dient zur hochperformanten Abschätzung der Krümmung einer 2D-Linie. Sie berechnet die Gesamtwinkeländerung entlang einer gegebenen Punktfolge und normiert diese auf einen Wert zwischen 0 (gerade Linie) und 1 (maximale Krümmung, 180° Richtungsänderung). Die Funktion wird verwendet, um die Krümmung des Pfades zu bestimmen, was essenziell für die Geschwindigkeitsvorhersage und -regelung ist. Sie wurde aus der ursprünglichen Klasse der Längsregelung in die Pfadplanung übertragen, um den Aufbau von main nicht verändern zu müssen.
 
-## 1. Installation
+## Querregelung
 
-Wir empfehlen die Pakete global zu installieren. Optional kann aber auch eine Virtuelle Umgebung angelegt werden:
+## Längsregelung
+**PID-Regler**
+    Werte P = 0,1; I = 0,0; D = 0,02
+    Die Werte wurden durch Testing ermittelt und auf eine optimale Längskontrolle angepasst. Durch den Wert I = 0,0 wurde der Regler zu einem PD-Regler "umgewandelt", da der integrale Fehler die Steuerung verfälscht hat. Dies kommt durch die langsame Beschleunigung des Fahrzeugs, wodurch der Integrale Fehler stark steigt und auf kurze Bremsanforderungen nicht mehr reagiert wird.
 
-### 1.1 Globale Installation (Empfohlen)
+**Geschwindigkeitsvorhersage**
+    Die Geschwindigkeit wird aus Gesamtkrümmung der aktuell vorgegebenen Kurve bestimmt. Dazu wird die Krümmung als Wert zwischen 0 (0°) und 1 (>= 180°) als "curvature" von der Pfadplanung zurückgegeben. Sie wird durch die Funktion "calculate_curvature_output" bestimmt. Diese Funktion wurde aus der ursprünglichen Klasse der Längsregelung in die Pfadplanung verlegt, um den Aufbau der main nicht ändern zu müssen.
+    Mit dem Wert der Krümmung kann der Wert für die aktuell gewünschte Geschwindigkeit ausgegeben werden, der aus dem Maximum zwischen der Minimalgeschwindigkeit und der Multiplikation von Krümmung und Maximalgeschwindigkeit ermittelt wird.
 
-1. Installieren aller python Pakete: `pip install "gymnasium[box2d]" numpy matplotlib scipy opencv-python`
-2. In den Source Ordner wechseln `cd <working-dir>`
-3. Testen der Installation: `python test_installation.py`. Danach sollte sich die Simulation öffnen und das Fahrzeug zufällig bewegen.
-
-### 1.2 Installation in virtueller Umgebung (Optional)
-
-1. Erstellen einer virtuellen Umgebung im Projektordner:
-
-    ```bash
-    cd <working-dir>
-    python -m venv .venv
-    ```
-
-2. Aktivieren der virtuellen Umgebung: `source .venv/bin/activate`
-3. Nun werden alle Python Befehle in dieser Umgebung ausgeführt und Pakete installiert.
-   **Wichtig: Die Umgebung muss für jedes Terminal neu aktiviert werden.**
-4. In vscode über `strg+shift+P` nach `Python: Select Interpreter` suchen und `.venv` als Interpreter auswählen.
-5. Installieren aller python Pakete: `pip install "gymnasium[box2d]" numpy matplotlib scipy opencv-python`
-6. Testen der Installation: `python test_installation.py`. Danach sollte sich die Simulation öffnen und das Fahrzeug zufällig bewegen.
-
-## 2. Dateistruktur
-
-Das Projekt ist wie folgt zu strukturieren:
-
-```python
-working-dir/
-| - .gitignore # Definition von Dateien, die nicht von git getrackt werden sollen
-| - car.py # Beschreibt das Fahrzeug und enthält die gesamte Pipeline
-| - env_wrapper.py # Wrapper für die Gymnasium Car Racing Simulation
-| - input_controller.py # Manuelle Steuerung des Fahrzeugs
-| - lane_detection.py # Modul zur Spurerkennung
-| - lateral_control.py # Modul zur Querregelung
-| - longitudinal_control.py # Modul zur Längsregelung
-| - main.py # Hauptdatei, die die Pipeline über 5 Iterationen ausführt
-| - path_planning.py # Modul zur Pfadplanung
-| - README.md # Diese Datei
-| - test_installation.py # Testet die Installation
-| - test_lane_detection.py # Testet die Spurerkennung
-| - test_lateral_control.py # Testet die Querregelung
-| - test_longitudinal_control.py # Testet die Längsregelung
-| - test_path_planning.py # Testet die Pfadplanung
-| - test_pipeline.py # Testet die gesamte Pipeline
-```
-
-## 3. Ausführung
-
-Die test Dateien können mit `python <test-file>.py` ausgeführt werden. Die Simulation wird sich öffnen und das Fahrzeug wird sich entsprechend der Pipeline bewegen. Um das Endergebnis zu simulieren, kann die `main.py` Datei ausgeführt werden. Sie führt die Pipeline über 5 Iterationen aus und berechnet den durchschnittlichen Score.
-
-## 4. Hinweise
-
-Die Dateien `main.py`, `env_wrapper.py` und `input_controller.py` dürfen nicht verändert werden, damit die Ergebnisse vergleichbar bleiben. Alle anderen Dateien können beliebig verändert werden.
+**Geschwindigkeitskontrolle**
+    Mit dem PID-Regler wird ein Ausgabesignal erzeugt, dass falls positiv eine Beschleunigung und falls Negativ eine Entschleunigung bewirkt. Die Werte für Gas und Bremse sind gewichtet und durch Tests ermittelt worden. Dabei werden Werte für die Beschleunigung deutlich verstärkt um das Auto schnell wieder auf mögliche Geschwindigkeiten zu beschleunigen. Die Werte für die Entschleunigung werden deutlich reduziert, dass das Auto nicht immer bei Erkennung einer Kurve abrupt bremst, sondern gleichmäßig in die Kurve hinein bremst, um möglichst lang die Geschwindigkeit auszunutzen.
+    Die Werte der Beschleunigung werden bei Lenkeinschlägen, größer eines Grenzwertes stark reduziert um Ausbrechen zu vermeiden.
