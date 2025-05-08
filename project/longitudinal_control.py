@@ -56,7 +56,7 @@ class LongitudinalControl:
         brake = max(0, -output * brake_weight)  # Nur negative Werte für Bremse
 
         # Verhindere starkes Gasgeben und Lenken gleichzeitig
-        if abs(steering_angle) > 0.3:  # Beispielschwelle für starkes Lenken
+        if abs(steering_angle) > 0.1:  # Beispielschwelle für starkes Lenken
             gas *= 0.01
 
         return gas, brake
