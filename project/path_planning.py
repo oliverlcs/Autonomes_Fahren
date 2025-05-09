@@ -3,7 +3,7 @@ from scipy.interpolate import make_splprep, splev, splprep
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, KDTree
 from matplotlib.path import Path
 
 class PathPlanning:
@@ -15,10 +15,10 @@ class PathPlanning:
         try:
             # spl_left is an instance of BSpline object used for fitting spline function
             spl_lane, _ = make_splprep(lane.T, s=smoothing_factor)
-            
+        
             # Sample x points along each border
             x_vals = np.linspace(0, 1, sample_points)
-            
+        
             # points_lane of shape (x, 2): arrays containing x-y-value pairs
             points_lane = np.array(spl_lane(x_vals)).T
             
@@ -29,6 +29,8 @@ class PathPlanning:
         except IndexError:
             print("IndexError: index -1 is out of bounds for axis 0 with size 0")
             return np.empty((0, 2))
+        # except Exception as e:
+        #     print(e)
     
     def calculate_centerline(self, left_lane: np.array, right_lane: np.array):
         
@@ -38,7 +40,6 @@ class PathPlanning:
         else:
             print("Incompatible shapes: left_lane and right_lane must have the same length")
             centerline = np.empty(0) 
-        
     
     def calculate_curvature(self, x, y):
         try:
@@ -203,13 +204,51 @@ class PathPlanning:
             return trajectory
 
         return np.array(result_trajectory)
+    
+    def sort_points_by_path(self, points):
+        """
+        Sort a set of 2D points in order by following the nearest neighbor path.
+        
+        Parameters:
+            points (np.ndarray): Array of shape (N, 2)
+        
+        Returns:
+            np.ndarray: Ordered points (N, 2)
+        """
+        points = np.array(points)
+        n_points = len(points)
+        visited = np.zeros(n_points, dtype=bool)
+        ordered_points = []
+
+        # Start at the first point
+        current_index = 0
+        ordered_points.append(points[current_index])
+        visited[current_index] = True
+
+        tree = KDTree(points)
+
+        for _ in range(1, n_points):
+            # Find nearest unvisited neighbor
+            dist, idx = tree.query(points[current_index], k=n_points)
+            for neighbor_index in idx:
+                if not visited[neighbor_index]:
+                    visited[neighbor_index] = True
+                    ordered_points.append(points[neighbor_index])
+                    current_index = neighbor_index
+                    break
+
+        return np.array(ordered_points)
         
     def plan(self, left_lane_points, right_lane_points):
         
-        # Adjust and sample lanes
-        left_lane = self.adjust_lanes(np.array(left_lane_points), sample_points=15)
+        left_lane_points = np.unique(np.asarray(left_lane_points), axis=0)
+        right_lane_points = np.unique(np.asarray(right_lane_points), axis=0)
         
-        right_lane = self.adjust_lanes(np.array(right_lane_points), sample_points=15)
+        # Adjust and sample lanes
+        left_lane = self.adjust_lanes(left_lane_points, sample_points=15)
+        right_lane = self.adjust_lanes(right_lane_points, sample_points=15)
+        
+        return left_lane_points,  right_lane_points, left_lane, 0, right_lane
         
         # Calculate centerline
         centerline = self.calculate_centerline(left_lane, right_lane)

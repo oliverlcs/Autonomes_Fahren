@@ -33,6 +33,10 @@ def run(env, input_controller: InputController):
         trajectory, curvature = path_planning.plan(
             left_lane_boundaries, right_lane_boundaries
         )
+<<<<<<< Updated upstream
+=======
+        # trajectory, curvature = path_planning.plan(left_lane_boundaries, right_lane_boundaries)
+>>>>>>> Stashed changes
         steering_angle = lateral_control.control(trajectory, info["speed"])
         target_speed = longitudinal_control.predict_target_speed(curvature)
         acceleration, braking = longitudinal_control.control(
