@@ -1,12 +1,29 @@
 import numpy as np
 from scipy import ndimage
+from scipy.ndimage import binary_dilation, binary_erosion
 
 class LaneDetection:
     def __init__(self):
+        """
+        Initialisiert die LaneDetection-Klasse.
+
+        Attributes:
+            debug_image (None): Debug-Bild zur Visualisierung.
+            car_position (np.ndarray): Position des Fahrzeugs im Bild.
+        """
         self.debug_image = None
         self.car_position = np.array([48, 64])
 
     def detect(self, image: np.ndarray):
+        """
+        Erkennt Fahrspuren im gegebenen Bild.
+
+        Args:
+            image (np.ndarray): Eingabebild als 2D- oder 3D-Array.
+
+        Returns:
+            tuple: Zwei Arrays mit Punkten der linken und rechten Fahrspur.
+        """
         # --- Schritt 1: In Graustufen umwandeln ---
         if len(image.shape) == 3 and image.shape[2] == 3:
             # RGB -> Grau: einfache Durchschnittsbildung
@@ -36,7 +53,7 @@ class LaneDetection:
 
 
         # --- Schritt 3: Starke Kantenpunkte extrahieren ---
-        threshold = np.percentile(sobel_magnitude, 93)  # Nur die stärksten 7% der Kanten nehmen
+        threshold = np.percentile(sobel_magnitude, 93)  # Nur die stärksten 3% der Kanten nehmen
         edges = sobel_magnitude > threshold
 
         # --- Schritt 4: Kantenpunkte sammeln als Linienpunkte ---
@@ -44,7 +61,6 @@ class LaneDetection:
         lines = np.column_stack((y_coords, x_coords))  # Form: [y, x] (wie erwartet)
 
         np.set_printoptions(threshold=np.inf)
-        print(lines)
 
         # Gruppiere die Linien basierend auf ihrer Nähe
         left_lines = []
@@ -62,6 +78,15 @@ class LaneDetection:
         return left_lines, right_lines
 
     def group_lines(self, points):
+        """
+        Gruppiert Linienpunkte basierend auf ihrer Nähe.
+
+        Args:
+            points (np.ndarray): Array mit Punkten der Form [y, x].
+
+        Returns:
+            tuple: Arrays mit Punkten der linken und rechten Fahrspur.
+        """
         # Konvertiere zu NumPy-Array für Performance
         points = np.array(points)
         # Entferne alle Punkte mit y > 80
@@ -70,18 +95,16 @@ class LaneDetection:
         if points.size == 0:
             return [], []
 
-        # Entferne Punkte unterhalb des Autos (y >= car_position[1])
-        points = points[points[:, 0] < self.car_position[1]+19]
+        left_points = np.empty((0, 2), dtype=int)  # Leeres Array mit 2 Spalten
+        right_points = np.empty((0, 2), dtype=int)  # Leeres Array mit 2 Spalten
 
-        #print(points)
-        right_points = np.array([])
-        left_points = np.array([])
-
-        # Finde alle Punkte auf Höhe y=62 (mit Toleranz von +/-1 Pixel)
+        # Finde alle Punkte auf Höhe y=80
         target_y = 80
         match = (points[:, 0] >= target_y) & (points[:, 0] <= target_y)
         # Filtere die Punkte, die auf der Zielhöhe 80 liegen
         matched_points = points[match]
+        # Sortiere die matched_points basierend auf den x-Werten (zweite Spalte)
+        matched_points = matched_points[np.argsort(matched_points[:, 1])]
 
         # Berechne den Durchschnitt der x-Werte
         while True:
@@ -100,9 +123,39 @@ class LaneDetection:
             if matched_points.size == 0:
                 break
 
-        # Sortiere die Punkte basierend auf ihrem x-Wert
-        left_points = matched_points[matched_points[:, 1] < average_x]
-        right_points = matched_points[matched_points[:, 1] >= average_x]
+        #Punkte auf der unteren Grenze zuordnen
+        tolerance = 4  # Maximale Toleranz für den x-Abstand
+        flag =False
+        if average_x < 48:
+            # Rückwärts durchlaufen
+            clusters = self.cluster_points(matched_points[::-1], tolerance)
+            toggle = True
+            for cluster in clusters:
+                if toggle:
+                    right_points = np.vstack((right_points, cluster))
+                    toggle = not toggle
+                else:
+                    left_points = np.vstack((left_points, cluster))
+                    if flag == False:
+                        flag = True
+                    #abfrage, für den größten abstand zwischen punkten in clusters
+                    else:
+                        toggle = not toggle
+
+        else:
+            # Vorwärts durchlaufen
+            clusters = self.cluster_points(matched_points, tolerance)
+            toggle = True
+            for cluster in clusters:
+                if toggle:
+                    left_points = np.vstack((left_points, cluster))
+                    toggle = not toggle
+                else:
+                    right_points = np.vstack((right_points, cluster))
+                    if flag == False:
+                        flag = True
+                    else:
+                        toggle = not toggle
 
         border_points = self.find_border_points(points)
 
@@ -110,43 +163,64 @@ class LaneDetection:
         if np.all(border_points[:, 1] < border_points[:, 0]):  # Prüfe, ob x < y für alle Punkte in border_points
             avg_y = np.mean(border_points[:, 0])  # Durchschnitt aller y-Werte
             # Abfrage, ab alle punkte auf einem punkt  liegen
-            if np.all((border_points[:, 0] >= avg_y - 2) & (border_points[:, 0] <= avg_y + 2)):  # Prüfe, ob alle y-Werte in avg_y ± 2 liegen
+            if np.all((border_points[:, 0] >= avg_y - 7) & (border_points[:, 0] <= avg_y + 7)):  # Prüfe, ob alle y-Werte in avg_y ± 2 liegen
                 right_points = np.vstack([right_points, border_points])  # Alle Punkte in right_points einsortieren
-            else:
 
+            else:
+                if len(clusters) > 2:
+                    #entferne alle werte mit y >78 aus borderpoints
+                    border_points = border_points[border_points[:, 0] <= 78]
                 for point in border_points:
                     if point[0] < avg_y:  # y kleiner als Durchschnitt
                         right_points = np.vstack([right_points, point])
                     else:  # y größer oder gleich Durchschnitt
                         left_points = np.vstack([left_points, point])
         else:
-            if np.any(border_points[:, 1] == 5):  # Prüfe, ob es Punkte mit x = 0 gibt
-                points_with_x_5 = border_points[border_points[:, 1] == 5]
-                avg_y_for_x_5 = np.mean(points_with_x_5[:, 0])
+            if np.any(border_points[:, 1] <= 1):  # Prüfe, ob es Punkte mit x = 0 gibt
+                points_with_x_1 = border_points[border_points[:, 1] <= 1]
+                avg_y_for_x_1 = np.mean(points_with_x_1[:, 0])
                 for point in border_points:
-                    if point[1] == 5:  # x = 0
-
-                        if(point[0] < avg_y_for_x_5):
-                            right_points = np.vstack([right_points, point])
+                    if point[1] <= 1:  # x = 0
+                        if len(clusters) > 2:
+                            if point[0] < 68:
+                                right_points = np.vstack([right_points, point])
                         else:
-                            left_points = np.vstack([left_points, point])
+                            if(point[0] < avg_y_for_x_1 - 8):
+                                right_points = np.vstack([right_points, point])
+                            else:
+                                left_points = np.vstack([left_points, point])
                     else:  # x > 0
-                        right_points = np.vstack([right_points, point])
+                        # Finde den Punkt mit dem größten x-Wert
+                        max_x_point = border_points[np.argmax(border_points[:, 1])]
+
+                        # Füge den Punkt zu right_points hinzu
+                        right_points = np.vstack([right_points, max_x_point])
+
             else:
                 avg_sum = np.mean(border_points[:, 0] + border_points[:, 1])  # Durchschnitt von x + y
-                if np.all((border_points[:, 0] + border_points[:, 1] >= avg_sum - 2) &
-                          (border_points[:, 0] + border_points[:, 1] <= avg_sum + 2)):  # Prüfe, ob alle Werte in avg_sum ± 2 liegen
-                    left_points = np.vstack([left_points, border_points])  # Alle Punkte in left_points einsortieren
+                if np.all((border_points[:, 0] + border_points[:, 1] >= avg_sum - 7) &
+                          (border_points[:, 0] + border_points[:, 1] <= avg_sum + 7)):  # Prüfe, ob alle Werte in avg_sum ± 2 liegen
+                    if np.all(border_points[:, 0] <= 6):
+                        pass
+                    else:
+                        left_points = np.vstack([left_points, border_points])  # Alle Punkte in left_points einsortieren
                 elif np.any(border_points[:, 0] == 0) and np.any(border_points[:, 0] != 0):
-                    max_sum_point = border_points[np.argmax(border_points[:, 0] + border_points[:, 1])]
-                    right_points = np.vstack([right_points, max_sum_point])
+                    if len(clusters) > 2:
+                        # Entferne alle Punkte mit y > 68 und y < 10 aus border_points
+                        border_points = border_points[(border_points[:, 0] <= 68) & (border_points[:, 0] >= 10)]
+                        left_points = np.vstack([left_points, border_points])
+                    else:
+                        max_sum_point = border_points[np.argmax(border_points[:, 0] + border_points[:, 1])]
+                        right_points = np.vstack([right_points, max_sum_point])
 
-                    # Finde den Punkt mit dem niedrigsten x + y und füge ihn zu left_points hinzu
-                    min_sum_point = border_points[np.argmin(border_points[:, 0] + border_points[:, 1])]
-                    left_points = np.vstack([left_points, min_sum_point])
+                        # Finde den Punkt mit dem niedrigsten x + y und füge ihn zu left_points hinzu
+                        min_sum_point = border_points[np.argmin(border_points[:, 0] + border_points[:, 1])]
+                        left_points = np.vstack([left_points, min_sum_point])
                 else:
                     for point in border_points:
-                        if point[0] + point[1] > avg_sum:  # Summe größer als Durchschnitt
+                        if len(clusters) > 2:
+                            left_points = np.vstack([left_points, point])
+                        elif point[0] + point[1] > avg_sum:  # Summe größer als Durchschnitt
                             right_points = np.vstack([right_points, point])
                         else:  # Summe kleiner oder gleich Durchschnitt
                             left_points = np.vstack([left_points, point])
@@ -157,24 +231,35 @@ class LaneDetection:
 
             dist_right = self.short_dist(point, right_points)
 
-            #print(dist_left, dist_right)
-
             if dist_left < dist_right:
                 left_points = np.vstack([left_points, point])
             else:
                 right_points = np.vstack([right_points, point])
 
+        #Maske um falsch zugeordnete Borderpoints zu entfernen
+        left_points = left_points[(left_points[:, 1] > 2) & (left_points[:, 1] < 93) & (left_points[:, 0] >= 2)]
+        right_points = right_points[(right_points[:, 1] > 2) & (right_points[:, 1] < 93) & (right_points[:, 0] >= 2)]
+
         return left_points, right_points
 
     def find_border_points(self, points):
+        """
+        Findet Punkte entlang der Bildränder.
+
+        Args:
+            points (np.ndarray): Array mit Punkten der Form [y, x].
+
+        Returns:
+            np.ndarray: Punkte, die sich entlang der Bildränder befinden.
+        """
         # points: numpy array der Form (N, 2), wobei jede Zeile [y, x] ist
         y = points[:, 0]
         x = points[:, 1]
 
         # Masken für die drei Randlinien
-        mask_left   = (x == 5)  & (y >= 0) & (y <= 62)
+        mask_left   = (x <= 2)  & (y >= 0) & (y < 80)
         mask_top    = (y == 0)  & (x >= 0) & (x <= 95)
-        mask_right  = (x == 90) & (y >= 0) & (y <= 62)
+        mask_right  = (x >= 93) & (y >= 0) & (y < 80)
 
         # Kombinierte Maske
         mask = mask_left | mask_top | mask_right
@@ -182,7 +267,43 @@ class LaneDetection:
         return points[mask]
 
     def short_dist(self, punkt, punkte_array):
+        """
+        Berechnet die kürzeste Distanz zwischen einem Punkt und einem Array von Punkten.
+
+        Args:
+            punkt (np.ndarray): Einzelner Punkt [y, x].
+            punkte_array (np.ndarray): Array von Punkten.
+
+        Returns:
+            float: Kürzeste Distanz.
+        """
         if punkte_array.size == 0:  # Überprüfen, ob das Array leer ist
             return float('inf')  # Unendliche Distanz zurückgeben
         abstaende = np.linalg.norm(punkte_array - punkt, axis=1)
         return np.min(abstaende)
+
+    def cluster_points(self, points, tolerance=2):
+        """
+        Gruppiert Punkte in Cluster basierend auf einer Toleranz.
+
+        Args:
+            points (np.ndarray): Array von Punkten der Form [y, x].
+            tolerance (int): Maximale Toleranz für den Abstand zwischen Punkten.
+
+        Returns:
+            list: Liste von Clustern, wobei jedes Cluster ein Array von Punkten ist.
+        """
+        if len(points) == 0:
+            return []
+
+        clusters = []
+        current_cluster = [points[0]]
+
+        for i in range(1, len(points)):
+            if abs(points[i][1] - current_cluster[-1][1]) <= tolerance:
+                current_cluster.append(points[i])
+            else:
+                clusters.append(np.array(current_cluster))
+                current_cluster = [points[i]]
+        clusters.append(np.array(current_cluster))
+        return clusters

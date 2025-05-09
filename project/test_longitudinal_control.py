@@ -7,9 +7,13 @@ from input_controller import InputController
 from longitudinal_control import LongitudinalControl
 from matplotlib import pyplot as plt
 
+from path_planning import PathPlanning
+
 fig = plt.figure()
 plt.ion()
 plt.show()
+
+path_planner = PathPlanning()
 
 
 def run(env, input_controller: InputController):
@@ -23,9 +27,9 @@ def run(env, input_controller: InputController):
     target_speed_history = []
 
     while not input_controller.quit:
+        curvature = path_planner.calculate_curvature_output(info["trajectory"])
         target_speed = longitudinal_control.predict_target_speed(
-            info["trajectory"], info["speed"], input_controller.steer
-        )
+            curvature)
         acceleration, braking = longitudinal_control.control(
             info["speed"], target_speed, input_controller.steer
         )

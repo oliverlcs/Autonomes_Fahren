@@ -11,7 +11,7 @@ from lane_detection import LaneDetection
 def run(env, input_controller: InputController):
     lane_detection = LaneDetection()
 
-    seed = int(np.random.randint(0, int(1e6)))
+    seed = 758762#int(np.random.randint(0, int(1e6)))#783170
     state_image, info = env.reset(seed=seed)
     total_reward = 0.0
 

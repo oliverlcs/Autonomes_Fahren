@@ -18,22 +18,23 @@ def run(env, input_controller: InputController):
     total_reward = 0.0
 
     while not input_controller.quit:
-<<<<<<< Updated upstream
-        steering_angle = lateral_control.control(info["trajectory"], info["speed"])
-=======
+
+        steering_angle, trajectory, target_point = lateral_control.control(info["trajectory"], info["speed"])
         trajectory, curvature = path_planning.plan(
             info["left_lane_boundary"], info["right_lane_boundary"]
         )
-        steering_angle, target_point = lateral_control.control(trajectory, info["speed"])
->>>>>>> Stashed changes
+
 
         cv_image = np.asarray(state_image, dtype=np.uint8)
-        for point in info["trajectory"]:
+        # for point in info["trajectory"]:
+        #     if 0 < point[0] < 96 and 0 < point[1] < 84:
+        #         cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
+        for point in trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
-<<<<<<< Updated upstream
-=======
-        cv_image[int(target_point[1]), int(target_point[0])] = [0, 0, 0]
+        if 0 < target_point[0] < 96 and 0 < target_point[1] < 84:
+                cv_image[int(target_point[1]), int(target_point[0])] = [0,0,0]
+                
         # radius, x_car, y_car = 30.0, 48.0, 64.0
         # r_45_deg = radius*0.707
         # points_circle = [[x_car, y_car+radius], [x_car, y_car-radius], [x_car+radius, y_car], [x_car-radius, y_car], [x_car+r_45_deg, y_car+r_45_deg], [x_car+r_45_deg, y_car-r_45_deg], [x_car-r_45_deg, y_car+r_45_deg], [x_car-r_45_deg, y_car-r_45_deg]]
@@ -41,7 +42,6 @@ def run(env, input_controller: InputController):
         # for point in points_circle:
         #     if 0 < point[0] < 96 and 0 < point[1] < 84:
         #         cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
->>>>>>> Stashed changes
 
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
         cv_image = cv2.resize(cv_image, (cv_image.shape[1] * 6, cv_image.shape[0] * 6))

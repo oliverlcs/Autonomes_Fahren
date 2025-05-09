@@ -24,10 +24,10 @@ class PathPlanning:
             
             return points_lane
         except ValueError:
-            print("ValueError: nc = 4 > m = 3")
+            # print("ValueError: nc = 4 > m = 3")
             return np.empty((0, 2))
         except IndexError:
-            print("IndexError: index -1 is out of bounds for axis 0 with size 0")
+            # print("IndexError: index -1 is out of bounds for axis 0 with size 0")
             return np.empty((0, 2))
         # except Exception as e:
         #     print(e)
@@ -38,7 +38,7 @@ class PathPlanning:
             centerline = np.array(np.mean([left_lane, right_lane], axis=0))
             return centerline
         else:
-            print("Incompatible shapes: left_lane and right_lane must have the same length")
+            # print("Incompatible shapes: left_lane and right_lane must have the same length")
             centerline = np.empty(0) 
     
     def calculate_curvature(self, x, y):
@@ -50,7 +50,7 @@ class PathPlanning:
             curvature = (dx * dyy - dy * dxx) / np.power(dx**2 + dy**2, 1.5)
             return np.array(curvature)
         except Exception as e:
-            print("Curvature calculation error: x or y too small to calculate gradient")
+            # print("Curvature calculation error: x or y too small to calculate gradient")
             return np.empty(0)
 
     def apply_mask(self, lane: np.array, min_x, max_x, min_y, max_y):
@@ -238,55 +238,88 @@ class PathPlanning:
                     break
 
         return np.array(ordered_points)
-        
+
+    def calculate_curvature_output(self, points: np.ndarray) -> float:
+        """
+        #     Funktion übertragen aus longitudinal_control.py, um gesamt Krümmung zu berechnen
+        #     Hochperformante Krümmungsabschätzung einer 2D-Linie.
+        #     0 = Gerade, 1 = maximale Krümmung (180° Richtungsänderung).
+
+        #     Args:
+        #         points (np.ndarray): Nx2-Array mit 2D-Koordinaten.
+
+        #     Returns:
+        #         float: Krümmung zwischen 0.0 und 1.0
+        #     """
+
+        if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 2:
+            return 0.0
+
+        if points.shape[0] < 3:
+            return 0.0
+
+        # Richtungsvektoren berechnen
+        d = np.diff(points, axis=0)
+
+        # Normalisieren
+        norm = np.linalg.norm(d, axis=1)
+        d_unit = d / norm[:, None]
+
+        # Skalarprodukt benachbarter Einheitsvektoren → cos(θ)
+        dot = np.einsum('ij,ij->i', d_unit[:-1], d_unit[1:])
+        angles = np.arccos(np.clip(dot, -1.0, 1.0))  # numerisch stabil
+
+        # Gesamtwinkeländerung
+        total_angle = angles.sum()
+
+        # Normierung auf maximalen möglichen Wert (pi)
+        return min(1.0, total_angle / np.pi)
+
     def plan(self, left_lane_points, right_lane_points):
         
         left_lane_points = np.unique(np.asarray(left_lane_points), axis=0)
         right_lane_points = np.unique(np.asarray(right_lane_points), axis=0)
-        
+
         # Adjust and sample lanes
         left_lane = self.adjust_lanes(left_lane_points, sample_points=15)
         right_lane = self.adjust_lanes(right_lane_points, sample_points=15)
-        
+
         return left_lane_points,  right_lane_points, left_lane, 0, right_lane
-        
+
         # Calculate centerline
         centerline = self.calculate_centerline(left_lane, right_lane)
-        
+
         if centerline is None or centerline.shape[0] == 0:
-            return np.empty((0, 2)), np.empty(0)
-        
-        # Clip centerline to stay above car   
+            return np.empty((0, 2)), 0.0
+
+        # Clip centerline to stay above car
         centerline = self.apply_mask(centerline, 0, 96, 0, 67)
-        
+
         # Calculate curvature of centerline
         centerline_curvature = self.calculate_curvature(x=centerline[:,0], y=centerline[:,1])
-        
+
         if len(centerline_curvature) == 0:
-            return centerline, np.empty(0)
-        
+            return centerline, 0.0
+
         # Optimize trajectory
         optimized_trajectory = self.optimize_trajectory_optimized(centerline, centerline_curvature)
 
         # Smooth trajectory
         optimized_trajectory = self.adjust_lanes(optimized_trajectory, smoothing_factor=0.2, sample_points=20)
-        
+
         # Filter points in trajectory so curves aren't too early detected
         optimized_trajectory = self.apply_mask(optimized_trajectory, 0, 96, 30, 67)
         centerline_fb = self.apply_mask(centerline, 0, 96, 30, 67)
-        
+
         # Keep only valid points (i.e. inside track boundaries and not in the past)
         optimized_trajectory = self.filter_outside_track_points(left_lane, optimized_trajectory, centerline_curvature)
         centerline_fb = self.filter_outside_track_points(left_lane, centerline_fb, centerline_curvature)
-        
+
         # if np.sum(np.linalg.norm(np.diff(optimized_trajectory, axis=0), axis=1)) / (len(optimized_trajectory) - 1) > 5:
         #     return centerline_fb, centerline_curvature
-        
+
         if len(optimized_trajectory) == 0:
-            return centerline_fb, centerline_curvature
-        
-        # Calculate curvature for each point of optimized_trajectory
-        optimized_trajectory_curvature = self.calculate_curvature(x=optimized_trajectory[:,0], y=optimized_trajectory[:,1])
-        
-        return optimized_trajectory, optimized_trajectory_curvature
+            return centerline_fb, self.calculate_curvature_output(centerline)
+
+        return optimized_trajectory, self.calculate_curvature_output(optimized_trajectory)
         # return centerline, optimized_trajectory, test_points
