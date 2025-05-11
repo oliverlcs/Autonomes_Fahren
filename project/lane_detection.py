@@ -31,6 +31,12 @@ class LaneDetection:
         else:
             gray = image.copy()
 
+        # --- Schritt 1.5: Pixel mit y > 80 entfernen ---
+        height, width = gray.shape
+        mask = np.arange(height)[:, None] <= 82  # Maske für y <= 82
+        mask = np.tile(mask, (1, width))  # Erweitere die Maske auf die gleiche Breite wie das Bild
+        gray[~mask] = 0  # Setze Pixel mit y > 80 auf 0
+
         # --- Schritt 2: Sobel-Kantenfilter anwenden ---
         sobel_x = ndimage.sobel(gray, axis=1, mode='reflect')  # Kanten in x-Richtung
         sobel_y = ndimage.sobel(gray, axis=0, mode='reflect')  # Kanten in y-Richtung
@@ -53,7 +59,7 @@ class LaneDetection:
 
 
         # --- Schritt 3: Starke Kantenpunkte extrahieren ---
-        threshold = np.percentile(sobel_magnitude, 93)  # Nur die stärksten 3% der Kanten nehmen
+        threshold = np.percentile(sobel_magnitude, 94)  # Nur die stärksten 6% der Kanten nehmen
         edges = sobel_magnitude > threshold
 
         # --- Schritt 4: Kantenpunkte sammeln als Linienpunkte ---
