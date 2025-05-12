@@ -14,7 +14,7 @@ def run(env, input_controller: InputController):
     path_planning = PathPlanning()
     lane_detection = LaneDetection()
 
-    seed = int(np.random.randint(0, int(1e6)))
+    seed = 758762 # int(np.random.randint(0, int(1e6)))
     state_image, info = env.reset(seed=seed)
     total_reward = 0.0
     
@@ -37,6 +37,8 @@ def run(env, input_controller: InputController):
         for point in trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
+        # cv_image[int(67), int(38)] = [255, 255, 255]
+        # cv_image[int(67), int(58)] = [255, 255, 255]
 
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
         cv_image = cv2.resize(cv_image, (cv_image.shape[1] * 6, cv_image.shape[0] * 6))

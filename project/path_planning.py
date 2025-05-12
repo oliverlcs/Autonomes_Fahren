@@ -65,12 +65,11 @@ class PathPlanning:
         mask = (min_x < lane[:,0]) & (lane[:, 0] < max_x) & (min_y < lane[:,1]) & (lane[:,1] < max_y)
         return np.array(lane[mask])
     
-    def find_nearest_neighbour(self, lane: np.ndarray):
+    def find_nearest_neighbour(self, lane: np.ndarray, radius=12):
         if lane.ndim != 2:
             return lane
         
         # initialization
-        radius = 12
         visited = []
         visited_set = set()
         
@@ -128,6 +127,39 @@ class PathPlanning:
             current_point = next_point
         
         return np.array(visited)
+    
+    def trim_by_greedy_pairing(self, left_lane, right_lane, max_pairing_distance=30.0):
+        
+        if len(left_lane) == 0 or len(right_lane) == 0:
+            return left_lane, right_lane
+        
+        left_lane = np.asarray(left_lane)
+        right_lane = np.asarray(right_lane)
+
+        visited_left = []
+        visited_right = []
+        used_right_indices = set()
+
+        for i, left_point in enumerate(left_lane):
+            # Compute distances to all right border points
+            dists = np.linalg.norm(right_lane - left_point, axis=1)
+
+            # Mask out already used right indices
+            for idx in used_right_indices:
+                dists[idx] = np.inf
+
+            min_dist_idx = np.argmin(dists)
+            min_dist = dists[min_dist_idx]
+
+            if min_dist <= max_pairing_distance:
+                visited_left.append(left_point)
+                visited_right.append(right_lane[min_dist_idx])
+                used_right_indices.add(min_dist_idx)
+            else:
+                # Stop when we can't find a suitable match
+                break
+
+        return np.array(visited_left), np.array(visited_right)
     
     def optimize_trajectory(self, centerline, centerline_curvature):
         optimized_trajectory = []
@@ -346,12 +378,13 @@ class PathPlanning:
         # Normierung auf maximalen möglichen Wert (pi)
         return min(1.0, total_angle / np.pi)
     
+    def compute_arc_length(self, points):
+        return np.sum(np.linalg.norm(np.diff(points, axis=0), axis=1))
+    
 
     def plan(self, left_lane_points, right_lane_points):
         
         if self.own_lane_detection:
-            # left_lane_points = np.unique(np.asarray(left_lane_points), axis=0)
-            # right_lane_points = np.unique(np.asarray(right_lane_points), axis=0)
             
             left_lane_points = self.apply_mask(np.asarray(left_lane_points), 0, 96, 0, 77)
             right_lane_points = self.apply_mask(np.asarray(right_lane_points), 0, 96, 0, 77)
@@ -360,17 +393,29 @@ class PathPlanning:
             right_lane_points = self.find_nearest_neighbour(np.array(right_lane_points))
             
         # Adjust and sample lanes
-        left_lane = self.adjust_lanes(left_lane_points, sample_points=15)
+        left_lane = self.adjust_lanes(left_lane_points,  sample_points=15)
         right_lane = self.adjust_lanes(right_lane_points, sample_points=15)
+        
+        l_l_l = self.compute_arc_length(left_lane)
+        r_l_l = self.compute_arc_length(right_lane)
+        
+        # print(f"{(l_l_l - r_l_l):.3f}")
+        
+        if l_l_l - r_l_l > 40:
+            left_lane, right_lane = self.trim_by_greedy_pairing(left_lane, right_lane, max_pairing_distance=30.0)
+            left_lane = self.adjust_lanes(left_lane,  sample_points=15)
+            right_lane = self.adjust_lanes(right_lane, sample_points=15)
 
         # Calculate centerline
         centerline = self.calculate_centerline(left_lane, right_lane)
-
         if centerline is None or centerline.shape[0] == 0:
             return np.empty((0, 2)), 0.0
 
         # Clip centerline to stay above car
         centerline = self.apply_mask(centerline, 0, 96, 0, 67)
+        centerline = self.find_nearest_neighbour(centerline, radius=8)
+        centerline = self.adjust_lanes(centerline, smoothing_factor=5.0, sample_points=15)
+
 
         # Calculate curvature of centerline
         centerline_curvature = self.calculate_curvature(x=centerline[:,0], y=centerline[:,1])
@@ -382,15 +427,13 @@ class PathPlanning:
         optimized_trajectory = self.optimize_trajectory_optimized(centerline, centerline_curvature)
 
         # Smooth trajectory
-        optimized_trajectory = self.adjust_lanes(optimized_trajectory, smoothing_factor=0.2, sample_points=20)
+        optimized_trajectory = self.adjust_lanes(optimized_trajectory, smoothing_factor=10.0, sample_points=20)
 
         # Filter points in trajectory so curves aren't too early detected
-        optimized_trajectory = self.apply_mask(optimized_trajectory, 0, 96, 30, 67)
-        centerline_fb = self.apply_mask(centerline, 0, 96, 30, 67)
+        optimized_trajectory = self.apply_mask(optimized_trajectory, 0, 96, 10, 64)
 
         # Keep only valid points (i.e. inside track boundaries and not in the past)
-        optimized_trajectory = self.filter_outside_track_points(left_lane, optimized_trajectory, centerline_curvature)
-        # centerline_fb = self.filter_outside_track_points(left_lane, centerline_fb, centerline_curvature)
+        # optimized_trajectory = self.filter_outside_track_points(left_lane, optimized_trajectory, centerline_curvature)
 
         # if np.sum(np.linalg.norm(np.diff(optimized_trajectory, axis=0), axis=1)) / (len(optimized_trajectory) - 1) > 5:
         #     return centerline_fb, centerline_curvature
