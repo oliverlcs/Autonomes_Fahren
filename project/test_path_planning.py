@@ -21,8 +21,13 @@ def run(env, input_controller: InputController):
     time.sleep(0.5)
 
     while not input_controller.quit:
+        
         left_lane, right_lane = lane_detection.detect(state_image)
-        left_lane, right_lane, optimized_trajectory, optimized_trajectory_curvature, right_lane_spl = path_planning.plan(
+        # trajectory, curvature = path_planning.plan(
+        #    left_lane, right_lane
+        #    # info["left_lane_boundary"], info["right_lane_boundary"],
+        # )
+        trajectory, curvature = path_planning.plan(
             left_lane, right_lane
         )
         # way_points = np.asarray([])
@@ -33,10 +38,7 @@ def run(env, input_controller: InputController):
         for point in right_lane:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
-        for point in right_lane_spl:
-            if 0 < point[0] < 96 and 0 < point[1] < 84:
-                cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
-        for point in optimized_trajectory:
+        for point in trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
 

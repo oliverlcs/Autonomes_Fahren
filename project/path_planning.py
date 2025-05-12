@@ -5,10 +5,13 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
 from scipy.spatial import ConvexHull, KDTree
 from matplotlib.path import Path
+from sklearn.neighbors import NearestNeighbors
 
 class PathPlanning:
 
     def __init__(self):
+        self.car_position = np.array([48, 67])
+        self.own_lane_detection = False
         pass
     
     def adjust_lanes(self, lane, smoothing_factor=0, sample_points=10):
@@ -53,10 +56,77 @@ class PathPlanning:
             # print("Curvature calculation error: x or y too small to calculate gradient")
             return np.empty(0)
 
-    def apply_mask(self, lane: np.array, min_x, max_x, min_y, max_y):
+    def apply_mask(self, lane: np.ndarray, min_x, max_x, min_y, max_y):
+        if lane.ndim != 2:
+            return lane
+        
         # x goes from 0 - 96, y goes from 0 - 84
         mask = (min_x < lane[:,0]) & (lane[:, 0] < max_x) & (min_y < lane[:,1]) & (lane[:,1] < max_y)
         return np.array(lane[mask])
+    
+    def find_nearest_neighbour(self, lane: np.ndarray):
+        if lane.ndim != 2:
+            return lane
+        
+        # initialization
+        radius = 12
+        visited = []
+        visited_set = set()
+        
+        # find closest lane point to car
+        distances = np.linalg.norm(lane - self.car_position, axis=1)
+        if len(distances) == 0:
+            return lane
+        start_idx = np.argmin(distances)
+        current_point = lane[start_idx]
+        
+        visited.append(current_point)
+        visited_set.add(tuple(current_point))
+        
+        current_vec = np.array([0.0, -1.0])
+        
+        # radius based neighbour index
+        nn = NearestNeighbors(radius=radius)
+        nn.fit(lane)
+        
+        while True:
+            # Find all neighbour indices within radius
+            neighbors_idx = nn.radius_neighbors([current_point], return_distance=False)[0]
+            candidates = []
+            
+            for idx in neighbors_idx:
+                point = lane[idx]
+                point_tuple = tuple(point)
+                if point_tuple in visited_set:
+                    continue # skip if point already visited
+                
+                # Vector from current point to candidate
+                direction = point - current_point
+                norm = np.linalg.norm(direction)
+                if norm == 0:
+                    continue # Skip zero-length vectors
+                
+                # Normalize direction and compute alignment (dot product)
+                direction_unit = direction / norm
+                angle = np.dot(direction_unit, current_vec)
+                
+                if angle > 0:
+                    candidates.append((point, angle))
+                    
+            if not candidates:
+                break
+            
+            # Select candidate with best forward alignment (max angle)
+            next_point, _ = max(candidates, key=lambda x: x[1])
+            visited.append(next_point)
+            visited_set.add(tuple(next_point))
+            
+            # Update direction vector and move forward
+            current_vec = (next_point - current_point)
+            current_vec = current_vec / np.linalg.norm(current_vec)
+            current_point = next_point
+        
+        return np.array(visited)
     
     def optimize_trajectory(self, centerline, centerline_curvature):
         optimized_trajectory = []
@@ -274,17 +344,23 @@ class PathPlanning:
 
         # Normierung auf maximalen möglichen Wert (pi)
         return min(1.0, total_angle / np.pi)
+    
 
     def plan(self, left_lane_points, right_lane_points):
         
-        left_lane_points = np.unique(np.asarray(left_lane_points), axis=0)
-        right_lane_points = np.unique(np.asarray(right_lane_points), axis=0)
-
+        if self.own_lane_detection:
+            # left_lane_points = np.unique(np.asarray(left_lane_points), axis=0)
+            # right_lane_points = np.unique(np.asarray(right_lane_points), axis=0)
+            
+            left_lane_points = self.apply_mask(np.asarray(left_lane_points), 0, 96, 0, 77)
+            right_lane_points = self.apply_mask(np.asarray(right_lane_points), 0, 96, 0, 77)
+            
+            left_lane_points = self.find_nearest_neighbour(np.array(left_lane_points))
+            right_lane_points = self.find_nearest_neighbour(np.array(right_lane_points))
+            
         # Adjust and sample lanes
         left_lane = self.adjust_lanes(left_lane_points, sample_points=15)
         right_lane = self.adjust_lanes(right_lane_points, sample_points=15)
-
-        return left_lane_points,  right_lane_points, left_lane, 0, right_lane
 
         # Calculate centerline
         centerline = self.calculate_centerline(left_lane, right_lane)
@@ -313,13 +389,13 @@ class PathPlanning:
 
         # Keep only valid points (i.e. inside track boundaries and not in the past)
         optimized_trajectory = self.filter_outside_track_points(left_lane, optimized_trajectory, centerline_curvature)
-        centerline_fb = self.filter_outside_track_points(left_lane, centerline_fb, centerline_curvature)
+        # centerline_fb = self.filter_outside_track_points(left_lane, centerline_fb, centerline_curvature)
 
         # if np.sum(np.linalg.norm(np.diff(optimized_trajectory, axis=0), axis=1)) / (len(optimized_trajectory) - 1) > 5:
         #     return centerline_fb, centerline_curvature
 
         if len(optimized_trajectory) == 0:
-            return centerline_fb, self.calculate_curvature_output(centerline)
+            return centerline, self.calculate_curvature_output(centerline)
 
         return optimized_trajectory, self.calculate_curvature_output(optimized_trajectory)
         # return centerline, optimized_trajectory, test_points
