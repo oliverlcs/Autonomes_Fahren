@@ -6,11 +6,13 @@ import numpy as np
 from env_wrapper import CarRacingEnvWrapper
 from input_controller import InputController
 from path_planning import PathPlanning
+from lane_detection import LaneDetection
 import time
 
 
 def run(env, input_controller: InputController):
     path_planning = PathPlanning()
+    lane_detection = LaneDetection()
 
     seed = int(np.random.randint(0, int(1e6)))
     state_image, info = env.reset(seed=seed)
@@ -19,18 +21,24 @@ def run(env, input_controller: InputController):
     time.sleep(0.5)
 
     while not input_controller.quit:
-        optimized_trajectory, optimized_trajectory_curvature = path_planning.plan(
-            info["left_lane_boundary"], info["right_lane_boundary"]
+        
+        left_lane, right_lane = lane_detection.detect(state_image)
+        # trajectory, curvature = path_planning.plan(
+        #    left_lane, right_lane
+        #    # info["left_lane_boundary"], info["right_lane_boundary"],
+        # )
+        trajectory, curvature = path_planning.plan(
+            left_lane, right_lane
         )
         # way_points = np.asarray([])
         cv_image = np.asarray(state_image, dtype=np.uint8)
-        for point in info["left_lane_boundary"]:
+        for point in left_lane:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [255, 0, 0]
-        for point in info["right_lane_boundary"]:
+        for point in right_lane:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
-        for point in optimized_trajectory:
+        for point in trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
 

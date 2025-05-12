@@ -25,7 +25,7 @@ def run(env, input_controller: InputController):
     fig = plt.figure()
     plt.ion()
     plt.show()
-
+    
     speed_history = []
     target_speed_history = []
 
@@ -34,7 +34,7 @@ def run(env, input_controller: InputController):
         trajectory, curvature = path_planning.plan(
             left_lane_boundaries, right_lane_boundaries
         )
-        trajectory, curvature = path_planning.plan(info["left_lane_boundary"], info["right_lane_boundary"])
+        trajectory, curvature = path_planning.plan(left_lane_boundaries, right_lane_boundaries)
         steering_angle = lateral_control.control(trajectory, info["speed"])
         target_speed = longitudinal_control.predict_target_speed(curvature)
         acceleration, braking = longitudinal_control.control(

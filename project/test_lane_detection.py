@@ -11,7 +11,7 @@ from lane_detection import LaneDetection
 def run(env, input_controller: InputController):
     lane_detection = LaneDetection()
 
-    seed = 758762#int(np.random.randint(0, int(1e6)))#783170
+    seed = 758762 # int(np.random.randint(0, int(1e6)))#783170
     state_image, info = env.reset(seed=seed)
     total_reward = 0.0
 
@@ -24,11 +24,11 @@ def run(env, input_controller: InputController):
 
         # Zeichne die linken Linien in Rot
         for y, x in left_lines:
-            debug_image[y, x] = [255, 0, 0]  # Rot (BGR-Format)
+            debug_image[x, y] = [255, 0, 0]  # Rot (BGR-Format)
 
         # Zeichne die rechten Linien in Grün
         for y, x in right_lines:
-            debug_image[y, x] = [0, 255, 0]  # Grün (BGR-Format)
+            debug_image[x, y] = [0, 255, 0]  # Grün (BGR-Format)
 
         # Konvertiere das Bild für die Anzeige
         cv_image = cv2.cvtColor(debug_image, cv2.COLOR_RGB2BGR)
@@ -64,7 +64,7 @@ def main():
 
     render_mode = "rgb_array" if args.no_display else "human"
     env = CarRacingEnvWrapper(
-        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=False)
+        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=True)
     )
     input_controller = InputController()
 

@@ -77,6 +77,9 @@ class LaneDetection:
         # Sortiere die Linienpunkte nach ihrer vertikalen Position (y-Wert)
         left_lines = np.array(sorted(left_lines, key=lambda point: point[0]))
         right_lines = np.array(sorted(right_lines, key=lambda point: point[0]))
+        
+        left_lines = left_lines[::, ::-1]
+        right_lines = right_lines[::, ::-1]
 
         return left_lines, right_lines
 
