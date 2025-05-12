@@ -64,7 +64,7 @@ def main():
 
     render_mode = "rgb_array" if args.no_display else "human"
     env = CarRacingEnvWrapper(
-        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=True)
+        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=False)
     )
     input_controller = InputController()
 
