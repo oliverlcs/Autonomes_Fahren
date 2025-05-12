@@ -25,7 +25,7 @@ def run(env, input_controller: InputController):
     fig = plt.figure()
     plt.ion()
     plt.show()
-    
+
     speed_history = []
     target_speed_history = []
 

@@ -25,6 +25,10 @@ class LongitudinalControl:
         self.previous_error = 0
         self.integral = 0
 
+        # Zielgeschwindigkeit basierend auf der Krümmung
+        self.max_speed = 100  # Maximale Geschwindigkeit (z. B. 100 km/h)
+        self.min_speed = 45   # Minimale Geschwindigkeit (z. B. 45 km/h)
+
     def control(self, current_speed, target_speed, steering_angle):
         """
         Berechnet Gas und Bremse basierend auf der aktuellen und Zielgeschwindigkeit.
@@ -48,16 +52,19 @@ class LongitudinalControl:
 
         # Gewichtung für Gas und Bremse
         gas_weight = 4.0  # Verstärkt die Gasreaktion
-        brake_weight = 0.08  # Bremse bleibt unverändert
-
+        brake_weight = 0.22  # Bremse bleibt unverändert
 
         # Gas und Bremse berechnen
         gas = max(0, output * gas_weight)  # Nur positive Werte für Gas
         brake = max(0, -output * brake_weight)  # Nur negative Werte für Bremse
 
+        # Verhindere, dass die Geschwindigkeit unter die Mindestgeschwindigkeit fällt
+        if current_speed - brake < self.min_speed:
+            brake = 0
+
         # Verhindere starkes Gasgeben und Lenken gleichzeitig
-        if abs(steering_angle) > 0.1 and current_speed > 10:  # Beispielschwelle für starkes Lenken
-            gas *= 0.01
+        if abs(steering_angle) > 0.08 and current_speed > 25:  # Beispielschwelle für starkes Lenken
+            gas *= 0.0
 
         return gas, brake
 
@@ -71,12 +78,9 @@ class LongitudinalControl:
         Returns:
             float: Zielgeschwindigkeit.
         """
-        # Zielgeschwindigkeit basierend auf der Krümmung
-        max_speed = 100  # Maximale Geschwindigkeit (z. B. 100 km/h)
-        min_speed = 45   # Minimale Geschwindigkeit (z. B. 45 km/h)
 
         # Berechne die Zielgeschwindigkeit basierend auf der Krümmung
-        target_speed = max(min_speed, max_speed * (1 - curvature))
+        target_speed = max(self.min_speed, self.max_speed * (1 - curvature))
 
         return target_speed
 
