@@ -109,6 +109,6 @@ class LateralControl:
         else:
             steering, target_point  = self.pure_pursuit_control(trajectory, speed)
         
-        return steering, target_point
+        return steering
         # return steering, trajectory, target_point
 

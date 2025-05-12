@@ -28,8 +28,10 @@ class PathPlanning:
             return points_lane
         except ValueError:
             # print("ValueError: nc = 4 > m = 3")
+            # print("ValueError: nc = 4 > m = 3")
             return np.empty((0, 2))
         except IndexError:
+            # print("IndexError: index -1 is out of bounds for axis 0 with size 0")
             # print("IndexError: index -1 is out of bounds for axis 0 with size 0")
             return np.empty((0, 2))
         # except Exception as e:

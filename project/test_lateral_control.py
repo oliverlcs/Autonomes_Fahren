@@ -20,28 +20,12 @@ def run(env, input_controller: InputController):
     total_reward = 0.0
 
     while not input_controller.quit:
-        # left_lines, right_lines = lane_detection.detect(state_image)
-        # trajectory, curvature = path_planning.plan(
-        #     info["left_lane_boundary"], info["right_lane_boundary"]
-        # )
-        steering_angle, target_point = lateral_control.control(info["trajectory"], info["speed"])
-        
-        
+        steering_angle, trajectory = lateral_control.control(info["trajectory"], info["speed"])
 
         cv_image = np.asarray(state_image, dtype=np.uint8)
         for point in info["trajectory"]:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [255, 255, 255]
-        cv_image[int(target_point[1]), int(target_point[0])] = [0, 0, 0]
-         
-        debug_image = state_image.copy()
-        # Zeichne die linken Linien in Rot
-        # for y, x in left_lines:
-        #     debug_image[x, y] = [255, 0, 0]  # Rot (BGR-Format)
-
-        # # Zeichne die rechten Linien in Grün
-        # for y, x in right_lines:
-        #     debug_image[x, y] = [0, 255, 0]  # Grün (BGR-Format)
 
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
         cv_image = cv2.resize(cv_image, (cv_image.shape[1] * 6, cv_image.shape[0] * 6))
