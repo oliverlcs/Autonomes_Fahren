@@ -11,11 +11,12 @@ class PathPlanning:
 
     def __init__(self):
         self.car_position = np.array([48, 67])
-        self.own_lane_detection = False
+        self.own_lane_detection = True
         pass
     
     def adjust_lanes(self, lane, smoothing_factor=0, sample_points=10):
         try:
+            lane = np.asarray(lane)
             # spl_left is an instance of BSpline object used for fitting spline function
             spl_lane, _ = make_splprep(lane.T, s=smoothing_factor)
         

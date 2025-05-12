@@ -78,6 +78,8 @@ class LaneDetection:
         left_lines = np.array(sorted(left_lines, key=lambda point: point[0]))
         right_lines = np.array(sorted(right_lines, key=lambda point: point[0]))
         
+        if len(left_lines) == 0 or len(right_lines) == 0:
+            return [], []
         left_lines = left_lines[::, ::-1]
         right_lines = right_lines[::, ::-1]
 

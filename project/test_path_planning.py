@@ -23,12 +23,8 @@ def run(env, input_controller: InputController):
     while not input_controller.quit:
         
         left_lane, right_lane = lane_detection.detect(state_image)
-        # trajectory, curvature = path_planning.plan(
-        #    left_lane, right_lane
-        #    # info["left_lane_boundary"], info["right_lane_boundary"],
-        # )
         trajectory, curvature = path_planning.plan(
-            left_lane, right_lane
+           left_lane, right_lane
         )
         # way_points = np.asarray([])
         cv_image = np.asarray(state_image, dtype=np.uint8)

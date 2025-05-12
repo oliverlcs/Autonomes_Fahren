@@ -100,15 +100,17 @@ class LateralControl:
         # steering = 1: driving right
         
         if len(trajectory) == 0:
-            return 0
+            return 0, [48, 67]
         
         # print(f"speed: {speed:.3f}")
         
-        if speed < 65:
-            steering, target_point = self.stanley_controller(trajectory, speed)
+        if speed < 75:
+            steering, target_point = self.stanley_controller(trajectory, speed) # für kurven -> niedrige Geschw.
         else:
-            steering, target_point  = self.pure_pursuit_control(trajectory, speed)
+            steering, target_point  = self.pure_pursuit_control(trajectory, speed) # für "geraden" -> höhere Geschw.
+            
+        print(f"steering: {steering}")
         
-        return steering
+        return steering, target_point
         # return steering, trajectory, target_point
 
