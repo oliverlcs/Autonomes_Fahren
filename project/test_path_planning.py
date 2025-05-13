@@ -9,6 +9,7 @@ from path_planning import PathPlanning
 from lane_detection import LaneDetection
 import time
 
+use_given_borders = False
 
 def run(env, input_controller: InputController):
     path_planning = PathPlanning()
@@ -22,23 +23,30 @@ def run(env, input_controller: InputController):
 
     while not input_controller.quit:
         
-        left_lane, right_lane = lane_detection.detect(state_image)
-        trajectory, curvature = path_planning.plan(
-           left_lane, right_lane
-        )
-        # way_points = np.asarray([])
         cv_image = np.asarray(state_image, dtype=np.uint8)
-        for point in left_lane:
-            if 0 < point[0] < 96 and 0 < point[1] < 84:
-                cv_image[int(point[1]), int(point[0])] = [255, 0, 0]
-        for point in right_lane:
-            if 0 < point[0] < 96 and 0 < point[1] < 84:
-                cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
+        
+        if use_given_borders:
+            trajectory, curvature = path_planning.plan(info["left_lane_boundary"], info["right_lane_boundary"])
+            for point in info["left_lane_boundary"]:
+                if 0 < point[0] < 96 and 0 < point[1] < 84:
+                    cv_image[int(point[1]), int(point[0])] = [255, 0, 0]
+            for point in info["right_lane_boundary"]:
+                if 0 < point[0] < 96 and 0 < point[1] < 84:
+                    cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
+        else:
+            left_lane, right_lane = lane_detection.detect(state_image)
+            trajectory, curvature = path_planning.plan(left_lane, right_lane)
+            for point in left_lane:
+                if 0 < point[0] < 96 and 0 < point[1] < 84:
+                    cv_image[int(point[1]), int(point[0])] = [255, 0, 0]
+            for point in right_lane:
+                if 0 < point[0] < 96 and 0 < point[1] < 84:
+                    cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
+
+        
         for point in trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
-        # cv_image[int(67), int(38)] = [255, 255, 255]
-        # cv_image[int(67), int(58)] = [255, 255, 255]
 
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
         cv_image = cv2.resize(cv_image, (cv_image.shape[1] * 6, cv_image.shape[0] * 6))

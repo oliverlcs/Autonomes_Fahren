@@ -1,17 +1,50 @@
-# Zusätzliche Libraries
+# Autonomes Fahren - Abschlussprojekt
 
-- sklearn (pip install scikit-learn) für das Path Planning
+Ziel des Projekts ist die Entwicklung einer Pipeline für einen selbstfahrenden Rennwagen mit Fokus auf einer effizienten und stabilen Fahrweise. Dabei setzen sich die Module der Pipeline aus Fahrbahnerkennung, Trajektorienplanung, Quer- und Längstregelung zusammen.
 
-# Abschlussprojekt: Autonomer Rennwagen
+## Installation & verwendete Bibliotheken
 
-## Spurerkennung
+- Python 3.12.x
+- numpy (pip install numpy)
+- scipy (pip install scipy)
+- scikit-learn (pip install scikit-learn)
 
-## Pfadplanung
+- Alle benötigten Bibliotheken installieren: pip install -r requirements.txt
 
-**Gesamtkrümmungsberechnung**
-Die Funktion **`calculate_curvature_output`** dient zur hochperformanten Abschätzung der Krümmung einer 2D-Linie. Sie berechnet die Gesamtwinkeländerung entlang einer gegebenen Punktfolge und normiert diese auf einen Wert zwischen 0 (gerade Linie) und 1 (maximale Krümmung, 180° Richtungsänderung). Die Funktion wird verwendet, um die Krümmung des Pfades zu bestimmen, was essenziell für die Geschwindigkeitsvorhersage und -regelung ist. Sie wurde aus der ursprünglichen Klasse der Längsregelung in die Pfadplanung übertragen, um den Aufbau von main nicht verändern zu müssen.
+- Projekt ausführen: python main.py
+
+## Fahrbahnerkennung
+
+## Trajektorienplanung
+
+Die Trajektorienplanung basiert auf der Berechnung einer Mittellinie, die abhängig von der lokalen Kurvenkrümmung zu einer Ideallinie verschoben wird.
+
+Ablauf der Planung:
+
+1. Vorverarbeitung der Fahrbahnbegrenzungen:
+   • Die linke und rechte Fahrbahnbegrenzung filtert die Methode `find_nearest_neighbors` und bringt die Punkte in eine geordnete Reihenfolge.
+   • Bei komplexen Kurven, wie Haarnadelkurven, entsteht eine Ungleichheit in der Punktanzahl (z. B. linke Seite deutlich länger als rechte), was die Mittellinienberechnung verzerrt.
+   • Das kompensiert die Methode `trim_by_pairing`, die paarweise linke und rechte Punkte innerhalb eines Schwellwertes zusammenführt.
+2. Berechnung der Mittellinie:
+   • Der Durchschnitt der gefilterten Punktepaare bestimmt Mittellinie.
+   • Diese Linie wird erneut mit `find_nearest_neighbors` sortiert und anschließend geglättet.
+3. Anpassung zur Ideallinie:
+   • Die Mittelline wird abhängig von ihrer berechneten Krümmung seitlich verschoben, um eine optimale Fahrlinie (Ideallinie) zu ermöglichen.
+   • Abschließend berechnet die Funktion `calculate_curvature_output` die Gesamtkrümmung einer Kurve als normierter Wert (zwischen 0 = gerade und 1 = scharfe Kurve).
+   • Dieses Krümmungsmaß wird direkt als Eingabe für die Längsregelung verwendet, um die Geschwindigkeit der Streckengeometrie anzupassen.
+
+**Hinweise**: Die Pfadplanung ist auf die Spurenerkennung angepasst, daher ist der Boolean `use_given_borders` standardmäßig auf `False` im File `test_path_planning` gestellt. Dieser kann auf `True` umgestellt werden, um die vorgegebenen Systemkanten zu verwenden.
+
+---
+
+Die Anpassung der Trajektorie basierend auf der Kurvenkrümmung ermöglicht eine fahrdynamisch günstigere Linie, wodurch höhere Kurvengeschwindigkeiten und ein insgesamt flüssigerer Fahrverlauf erreicht werden. Gleichzeitig dient die berechnete Krümmung als Grundlage für die Längsregelung, um die Geschwindigkeit vorausschauend an die Streckenführung anzupassen.
 
 ## Querregelung
+
+Für die Querregelung wird ein hybrider Ansatz verwendet, der je nach Geschwindigkeit zwischen zwei Reglern wechselt:  
+Bei niedrigen Geschwindigkeiten kommt der Stanley-Controller zum Einsatz, der präzise Spurverfolgung auch bei engen Kurven erlaubt.  
+Bei höheren Geschwindigkeiten wird auf den Pure-Pursuit-Controller umgeschaltet, der durch vorausschauendes Steuern eine stabile Fahrdynamik bei schneller Fahrt ermöglicht.  
+Diese Kombination erlaubt sowohl schnelles Beschleunigen auf Geraden als auch sicheres Folgen der Ideallinie in kurvenreichen Streckenabschnitten.
 
 ## Längsregelung
 
