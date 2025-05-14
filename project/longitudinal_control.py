@@ -1,6 +1,11 @@
 import numpy as np
 
 
+# Unterdrücken von RuntimeWarnings, die beim Streckenwechsel auftreten können, haben keinen EInfluss auf die Funktionalität
+import warnings
+# Unterdrückt RuntimeWarnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 class LongitudinalControl:
     def __init__(self, kp=0.1, ki=0.0, kd=0.02):
         """
@@ -27,7 +32,7 @@ class LongitudinalControl:
 
         # Zielgeschwindigkeit basierend auf der Krümmung
         self.max_speed = 100  # Maximale Geschwindigkeit (z. B. 100 km/h)
-        self.min_speed = 45   # Minimale Geschwindigkeit (z. B. 45 km/h)
+        self.min_speed = 40   # Minimale Geschwindigkeit (z. B. 45 km/h)
 
     def control(self, current_speed, target_speed, steering_angle):
         """
@@ -52,15 +57,11 @@ class LongitudinalControl:
 
         # Gewichtung für Gas und Bremse
         gas_weight = 4.0  # Verstärkt die Gasreaktion
-        brake_weight = 0.22  # Bremse bleibt unverändert
+        brake_weight = 0.16  # Bremse bleibt unverändert
 
         # Gas und Bremse berechnen
         gas = max(0, output * gas_weight)  # Nur positive Werte für Gas
         brake = max(0, -output * brake_weight)  # Nur negative Werte für Bremse
-
-        # Verhindere, dass die Geschwindigkeit unter die Mindestgeschwindigkeit fällt
-        if current_speed - brake < self.min_speed:
-            brake = 0
 
         # Verhindere starkes Gasgeben und Lenken gleichzeitig
         if abs(steering_angle) > 0.08 and current_speed > 25:  # Beispielschwelle für starkes Lenken
