@@ -126,9 +126,9 @@ class LateralControl:
         
         # Es konnte zu debugzwecken der angepeilte Trajektorie-Punkt ausgegeben werden
         if speed < 75:
-            steering, _ = self.stanley_controller(trajectory, speed) # für kurven -> niedrige Geschw.
+            steering = self.stanley_controller(trajectory, speed) # für kurven -> niedrige Geschw.
         else:
-            steering, _  = self.pure_pursuit_control(trajectory, speed) # für "geraden" -> höhere Geschw.
+            steering = self.pure_pursuit_control(trajectory, speed) # für "geraden" -> höhere Geschw.
             
         #print(f"steering: {steering}")
         return steering
