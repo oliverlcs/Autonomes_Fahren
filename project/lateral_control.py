@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class LateralControl:
 
     def __init__(self):
@@ -121,11 +120,18 @@ class LateralControl:
         """
         
         if len(trajectory) == 0:
-            return 0 # no trajectory -> drive straight
+            return 0
         
-        if speed < 80:
-            steering = self.stanley_controller(trajectory, speed) # low speed -> for curves
+        # print(f"speed: {speed:.3f}")
+        
+        # Es konnte zu debugzwecken der angepeilte Trajektorie-Punkt ausgegeben werden
+        if speed < 75:
+            steering = self.stanley_controller(trajectory, speed) # für kurven -> niedrige Geschw.
         else:
-            steering  = self.pure_pursuit_control(trajectory, speed) # high speed -> for "straight" sections
+            steering = self.pure_pursuit_control(trajectory, speed) # für "geraden" -> höhere Geschw.
+            
+        #print(f"steering: {steering}")
+        return steering
+        # return steering, trajectory, target_point
 
         return steering
