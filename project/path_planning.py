@@ -402,7 +402,7 @@ class PathPlanning:
 
         # Erhöhe die Krümmung, falls eine S-Kurve erkannt wurde (mind. 1 Vorzeichenwechsel)
         if sign_changes > 0:
-            curvature = min(1.0, curvature * (1.2 + 0.2 * sign_changes))  # z.B. 20% mehr pro Wechsel
+            curvature = min(1.0, curvature * (1.2 + 0.41 * sign_changes))  # z.B. 20% mehr pro Wechsel
 
         return curvature
 
