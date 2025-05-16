@@ -87,35 +87,48 @@ class LongitudinalControl:
 
     #Funktion übertragen in pathplanning, um gegebene Objektübergaben beizubehalten
     # def curvature_score(self, points: np.ndarray) -> float:
-    #     """
-    #     Hochperformante Krümmungsabschätzung einer 2D-Linie.
-    #     0 = Gerade, 1 = maximale Krümmung (180° Richtungsänderung).
+    #     """Calculates the total curvature of a 2D curve based on the change in direction between points for longitudinal control.
+        # """"
+        # This function computes the total change in direction between consecutive points along
+        # a 2D curve, normalizes it, and returns the curvature value between 0.0 and 1.0.
+        # A straight line will return a curvature of 0.0, and a maximal curvature (180° change in direction)
+        # will return a value of 1.0. S-curves (with direction changes) are weighted higher.
 
-    #     Args:
-    #         points (np.ndarray): Nx2-Array mit 2D-Koordinaten.
+        # Args:
+        #     points (np.ndarray): An Nx2 array of 2D coordinates representing points along the curve.
 
-    #     Returns:
-    #         float: Krümmung zwischen 0.0 und 1.0
-    #     """
-    #     if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 2:
-    #         return 0.0
+        # Returns:
+        #     float: A curvature value between 0.0 and 1.0, representing the total curvature of the curve.
+        # """
+        # if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 2:
+        #     return 0.0
 
-    #     if points.shape[0] < 3:
-    #         return 0.0
+        # if points.shape[0] < 3:
+        #     return 0.0
 
-    #     # Richtungsvektoren berechnen
-    #     d = np.diff(points, axis=0)
+        # # Calculate direction vectors between consecutive points
+        # d = np.diff(points, axis=0)
 
-    #     # Normalisieren
-    #     norm = np.linalg.norm(d, axis=1)
-    #     d_unit = d / norm[:, None]
+        # # Normalize the direction vectors
+        # norm = np.linalg.norm(d, axis=1)
+        # d_unit = d / norm[:, None]
 
-    #     # Skalarprodukt benachbarter Einheitsvektoren → cos(θ)
-    #     dot = np.einsum('ij,ij->i', d_unit[:-1], d_unit[1:])
-    #     angles = np.arccos(np.clip(dot, -1.0, 1.0))  # numerisch stabil
+        # # Compute the dot product of adjacent unit vectors to get cos(θ)
+        # dot = np.einsum('ij,ij->i', d_unit[:-1], d_unit[1:])
+        # angles = np.arccos(np.clip(dot, -1.0, 1.0))  # Numerically stable calculation
 
-    #     # Gesamtwinkeländerung
-    #     total_angle = angles.sum()
+        # # Bestimme das Vorzeichen der Kreuzprodukte (gibt die Drehrichtung an)
+        # cross = d_unit[:-1, 0] * d_unit[1:, 1] - d_unit[:-1, 1] * d_unit[1:, 0]
+        # sign_changes = np.sum(np.diff(np.sign(cross)) != 0)
 
-    #     # Normierung auf maximalen möglichen Wert (pi)
-    #     return min(1.0, total_angle / np.pi)
+        # # Compute the total change in angle
+        # total_angle = angles.sum()
+
+        # # Normalize by the maximum possible change (π)
+        # curvature = min(1.0, total_angle / np.pi)
+
+        # # Erhöhe die Krümmung, falls eine S-Kurve erkannt wurde (mind. 1 Vorzeichenwechsel)
+        # if sign_changes > 0:
+        #     curvature = min(1.0, curvature * (1.2 + 0.2 * sign_changes))  # z.B. 20% mehr pro Wechsel
+
+        # return curvature

@@ -50,8 +50,8 @@ class LaneDetection:
         car_y, car_x = self.car_position
 
         vehicle_mask[
-            car_y+16:car_y+32,         # ca. 16 Pixel hoch
-            car_x-20:car_x-12 # 20 Pixel breit
+            car_y+16:car_y+32,         # 16 Pixel hoch
+            car_x-20:car_x-12          # 8 Pixel breit
         ] = True
 
         # Setze in der sobel_magnitude die Fahrzeugregion auf 0, damit keine Kanten dort erkannt werden
@@ -64,11 +64,12 @@ class LaneDetection:
 
         # --- Schritt 4: Kantenpunkte sammeln als Linienpunkte ---
         y_coords, x_coords = np.nonzero(edges)
-        lines = np.column_stack((y_coords, x_coords))  # Form: [y, x] (wie erwartet)
+        lines = np.column_stack((y_coords, x_coords))  # Form: [y, x]
 
+        # Ausgabe der Linienpunkte für Debugging
         np.set_printoptions(threshold=np.inf)
 
-        # Gruppiere die Linien basierend auf ihrer Nähe
+        # --- Schritt 5: Gruppiere die Linien basierend auf ihrer Nähe
         left_lines = []
         right_lines = []
 
@@ -77,7 +78,7 @@ class LaneDetection:
         # Sortiere die Linienpunkte nach ihrer vertikalen Position (y-Wert)
         left_lines = np.array(sorted(left_lines, key=lambda point: point[0]))
         right_lines = np.array(sorted(right_lines, key=lambda point: point[0]))
-        
+
         if len(left_lines) == 0 or len(right_lines) == 0:
             return [], []
         left_lines = left_lines[::, ::-1]

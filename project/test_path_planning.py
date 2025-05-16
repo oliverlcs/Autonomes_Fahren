@@ -15,16 +15,16 @@ def run(env, input_controller: InputController):
     path_planning = PathPlanning()
     lane_detection = LaneDetection()
 
-    seed = 758762 # int(np.random.randint(0, int(1e6)))
+    seed = int(np.random.randint(0, int(1e6)))
     state_image, info = env.reset(seed=seed)
     total_reward = 0.0
-    
+
     time.sleep(0.5)
 
     while not input_controller.quit:
-        
+
         cv_image = np.asarray(state_image, dtype=np.uint8)
-        
+
         if use_given_borders:
             trajectory, curvature = path_planning.plan(info["left_lane_boundary"], info["right_lane_boundary"])
             for point in info["left_lane_boundary"]:
@@ -43,7 +43,6 @@ def run(env, input_controller: InputController):
                 if 0 < point[0] < 96 and 0 < point[1] < 84:
                     cv_image[int(point[1]), int(point[0])] = [0, 0, 255]
 
-        
         for point in trajectory:
             if 0 < point[0] < 96 and 0 < point[1] < 84:
                 cv_image[int(point[1]), int(point[0])] = [0, 0, 0]
@@ -81,7 +80,7 @@ def main():
 
     render_mode = "rgb_array" if args.no_display else "human"
     env = CarRacingEnvWrapper(
-        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=False)
+        gym.make("CarRacing-v3", render_mode=render_mode, domain_randomize=True)
     )
     input_controller = InputController()
 

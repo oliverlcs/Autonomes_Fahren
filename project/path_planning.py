@@ -365,7 +365,7 @@ class PathPlanning:
         This function computes the total change in direction between consecutive points along
         a 2D curve, normalizes it, and returns the curvature value between 0.0 and 1.0.
         A straight line will return a curvature of 0.0, and a maximal curvature (180° change in direction)
-        will return a value of 1.0.
+        will return a value of 1.0. S-curves (with direction changes) are weighted higher.
 
         Args:
             points (np.ndarray): An Nx2 array of 2D coordinates representing points along the curve.
@@ -390,11 +390,21 @@ class PathPlanning:
         dot = np.einsum('ij,ij->i', d_unit[:-1], d_unit[1:])
         angles = np.arccos(np.clip(dot, -1.0, 1.0))  # Numerically stable calculation
 
+        # Bestimme das Vorzeichen der Kreuzprodukte (gibt die Drehrichtung an)
+        cross = d_unit[:-1, 0] * d_unit[1:, 1] - d_unit[:-1, 1] * d_unit[1:, 0]
+        sign_changes = np.sum(np.diff(np.sign(cross)) != 0)
+
         # Compute the total change in angle
         total_angle = angles.sum()
 
         # Normalize by the maximum possible change (π)
-        return min(1.0, total_angle / np.pi)
+        curvature = min(1.0, total_angle / np.pi)
+
+        # Erhöhe die Krümmung, falls eine S-Kurve erkannt wurde (mind. 1 Vorzeichenwechsel)
+        if sign_changes > 0:
+            curvature = min(1.0, curvature * (1.2 + 0.2 * sign_changes))  # z.B. 20% mehr pro Wechsel
+
+        return curvature
 
     def calculate_arc_length(self, points: np.ndarray) -> float:
         """Calcuates the total length of a lane using the sum of all the euclidean distances between points.
