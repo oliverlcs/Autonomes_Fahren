@@ -65,7 +65,7 @@ class LongitudinalControl:
 
         # Verhindere starkes Gasgeben und Lenken gleichzeitig
         if abs(steering_angle) > 0.08 and current_speed > 25:  # Beispielschwelle für starkes Lenken
-            gas = 0.2
+            gas *= 0.0
 
         return gas, brake
 

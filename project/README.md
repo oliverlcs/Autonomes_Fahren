@@ -95,7 +95,7 @@ Die Zielgeschwindigkeit ergibt sich dabei aus dem Maximum von Minimalgeschwindig
 
 **Geschwindigkeitskontrolle**
 Mit dem PID-Regler wird ein Ausgabesignal erzeugt, dass falls positiv eine Beschleunigung und falls Negativ eine Entschleunigung bewirkt. Die Werte für Gas und Bremse sind gewichtet und durch Tests ermittelt worden. Dabei werden Werte für die Beschleunigung deutlich verstärkt um das Auto schnell wieder auf mögliche Geschwindigkeiten zu beschleunigen. Die Werte für die Entschleunigung werden deutlich reduziert, dass das Auto nicht immer bei Erkennung einer Kurve abrupt bremst, sondern gleichmäßig in die Kurve hinein bremst, um möglichst lang die Geschwindigkeit auszunutzen.
-Die Werte der Beschleunigung werden bei Lenkeinschlägen, größer eines Grenzwertes stark reduziert um Ausbrechen zu vermeiden.
+Die Werte der Beschleunigung werden bei Lenkeinschlägen, größer eines Grenzwertes Null gesetzt um Ausbrechen zu vermeiden.
 
    **----------Umsetztung Optional----------**
    Die Verbesserung der Längskontrolle wird durch unterschiedliche Heuristiken ermöglicht. In erster Linie wird durch die Betrachtung der Krümmung der Kurve durch `calculate_curvature_output` die Zielgeschwindigkeit aus einem Intervall zwischen der minimalen und der maximalen Geschwindigkeit berechnet. Zusätzlich zur Krümmung werden auch spezielle Streckenverläufe (S-Kurven) betrachtet, da sie eine besondere Regelung benötigen. Danach werden der Beschleunigungsparameter berechnet, wobei Gewichtungen von Gas und Bremse die Performance deutlich verbessert. Dadurch, dass teilweise schwarze Linien auf der Farbahn gezeigt werden, ist anzunehmen, dass die Längsregelung den Wagen nahe dem Grenzbereich fährt und somit die Performance star verbessert wurde.
