@@ -34,7 +34,7 @@ class LongitudinalControl:
         self.max_speed = 100  # Maximale Geschwindigkeit (z. B. 100 km/h)
         self.min_speed = 40   # Minimale Geschwindigkeit (z. B. 45 km/h)
 
-    def control(self, current_speed, target_speed, steering_angle):
+    def control(self, current_speed: float, target_speed: float, steering_angle: float) -> tuple[float, float]:
         """
         Berechnet Gas und Bremse basierend auf der aktuellen und Zielgeschwindigkeit.
 
@@ -69,7 +69,7 @@ class LongitudinalControl:
 
         return gas, brake
 
-    def predict_target_speed(self, curvature):
+    def predict_target_speed(self, curvature: float) -> float:
         """
         Berechnet die Zielgeschwindigkeit basierend auf der Straßenkrümmung.
 

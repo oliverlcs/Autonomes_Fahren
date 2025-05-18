@@ -14,7 +14,7 @@ class LaneDetection:
         self.debug_image = None
         self.car_position = np.array([48, 64])
 
-    def detect(self, image: np.ndarray):
+    def detect(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Erkennt Fahrspuren im gegebenen Bild.
 
@@ -86,7 +86,7 @@ class LaneDetection:
 
         return left_lines, right_lines
 
-    def group_lines(self, points):
+    def group_lines(self, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Gruppiert Linienpunkte basierend auf ihrer Nähe.
 
@@ -251,7 +251,7 @@ class LaneDetection:
 
         return left_points, right_points
 
-    def find_border_points(self, points):
+    def find_border_points(self, points: np.ndarray) -> np.ndarray:
         """
         Findet Punkte entlang der Bildränder.
 
@@ -275,7 +275,7 @@ class LaneDetection:
 
         return points[mask]
 
-    def short_dist(self, punkt, punkte_array):
+    def short_dist(self, punkt: np.ndarray, punkte_array: np.ndarray) -> float:
         """
         Berechnet die kürzeste Distanz zwischen einem Punkt und einem Array von Punkten.
 
@@ -291,7 +291,7 @@ class LaneDetection:
         abstaende = np.linalg.norm(punkte_array - punkt, axis=1)
         return np.min(abstaende)
 
-    def cluster_points(self, points, tolerance=2):
+    def cluster_points(self, points: np.ndarray, tolerance: int = 2) -> list[np.ndarray]:
         """
         Gruppiert Punkte in Cluster basierend auf einer Toleranz.
 
