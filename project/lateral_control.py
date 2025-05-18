@@ -6,24 +6,22 @@ class LateralControl:
         self._car_position = np.array([48, 64])
         self._car_vec = np.array([0, -1])
         
-    def pure_pursuit_control(self, trajectory, speed, lookahead_gain=0.2, max_steering=1.0):
+    def pure_pursuit_control(self, trajectory: np.ndarray, speed: float, lookahead_gain: float=0.3) -> float:
         """Computes the steering command using Pure Pursuit control.
 
         Args:
             trajectory (np.ndarray): A 2D array of (x, y) points representing the trajectory.
             speed (float): Current speed of the vehicle.
-            lookahead_gain (float, optional): Gain factor to compute the lookahead distance. Defaults to 0.2.
-            max_steering (float, optional): Maximum allowed steering value. Defaults to 1.0.
+            lookahead_gain (float, optional): Gain factor to compute the lookahead distance. Defaults to 0.3.
 
         Returns:
             float: The computed steering value, constrained to the range [-1.0, 1.0].
         """
 
-        lookahead_gain = 0.3
         # L_d = np.clip(lookahead_gain * (speed ** 1.2), 5, 35)
         # L_d = np.clip(lookahead_gain * np.log1p(speed), 5, 35)
         # L_d = np.clip(lookahead_gain * np.sqrt(speed), 5, 35)
-        L_d = np.clip(lookahead_gain * speed, 5, 35)
+        L_d = np.clip(lookahead_gain * speed, 5, 35) # calculate lookahead distance L_d
         
         # find the first trajectory point farther than L_d
         dists = np.linalg.norm(trajectory - self._car_position, axis=1)
@@ -36,35 +34,36 @@ class LateralControl:
 
         # Transform target point into vehicle coordinates
         delta_x = target_point[0] - self._car_position[0] # lateral offset
-        delta_y = target_point[1] - self._car_position[1] # longitudal offset (optimal: always positive)
+        delta_y = target_point[1] - self._car_position[1] # longitudinal offset (optimal: always positive)
         if delta_y >= -0.01:
-            return 0.0 # , target_point # If target is behind or very close drive straight
+            return 0.0 # If target is behind or very close drive straight
         
         # Calculate kappa k = 2dx / L_d^2 and map to steering
         kappa = 2.0 * delta_x / (L_d ** 2)
         x = 10
-        # steering = np.clip(kappa * x, -max_steering, max_steering)
+
+        # Map steering between -1, 1 using tanh
         steering = np.tanh(kappa * x)
         
         return steering
     
-    def normalize_angle(self, angle):
+    def normalize_angle(self, angle: float) -> float:
         """Normalize angle between [-pi, pi]."""
         return (angle + np.pi) % (2 * np.pi) - np.pi
 
-    def stanley_controller(self, trajectory, velocity, k=4.0):
+    def stanley_controller(self, trajectory: np.ndarray, speed: float, k: float=4.0) -> float:
         """
         Stanley controller for lateral control.
 
         Args:
-            vehicle_pos: Vehicle position as np.array([x, y])
-            vehicle_dir: Vehicle direction as np.array([dx, dy])
-            trajectory: List of points (x, y)
-            velocity: Vehicle speed (v > 0)
-            k: Gain factor for lateral error
+            vehicle_pos (np.ndarray): Vehicle position as np.array([x, y])
+            vehicle_dir (np.ndarray): Vehicle direction as np.array([dx, dy])
+            trajectory (np.ndarray): List of s (x, y)
+            speed (float): Vehicle speed (v > 0)
+            k (float): Gain factor for lateral error
 
         Returns:
-            steering: Steering value between -1 and 1
+            float: The computed steering value, constrained to the range [-1.0, 1.0].
         """
         
         # Find target point (closest point on the trajectory)
@@ -93,7 +92,7 @@ class LateralControl:
         crosstrack_error = np.cross(self._car_vec, vec_to_traj)  # # Dot product in 2D
 
         # Stanley formula
-        steering_angle = heading_error + np.arctan2(k * crosstrack_error, velocity + 1e-5)
+        steering_angle = heading_error + np.arctan2(k * crosstrack_error, speed + 1e-5)
 
         # Map steering between -1, 1 using tanh
         steering_output = np.tanh(steering_angle)
@@ -116,22 +115,20 @@ class LateralControl:
                 -1 for turning left
                 1 for turning right
                 0 for no steering required (straight ahead).
-
         """
         
         if len(trajectory) == 0:
             return 0
         
+        trajectory = np.asarray(trajectory)
         # print(f"speed: {speed:.3f}")
-        
-        # Es konnte zu debugzwecken der angepeilte Trajektorie-Punkt ausgegeben werden
-        if speed < 75:
-            steering = self.stanley_controller(trajectory, speed) # für kurven -> niedrige Geschw.
-        else:
-            steering = self.pure_pursuit_control(trajectory, speed) # für "geraden" -> höhere Geschw.
-            
-        #print(f"steering: {steering}")
-        return steering
-        # return steering, trajectory, target_point
 
+        if speed < 15:
+            return 0 # drive straight when accelerating from start position
+        if speed < 75:
+            steering = self.stanley_controller(trajectory, speed) # low speed -> for curves
+        else:
+            steering = self.pure_pursuit_control(trajectory, speed) # higher speed -> for straighter sections
+            
+        # print(f"steering: {steering}")
         return steering

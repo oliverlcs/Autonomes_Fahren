@@ -31,6 +31,7 @@ Ziel des Projekts ist die Entwicklung einer Pipeline für einen selbstfahrenden 
    Die erkannten Linienpunkte werden in rechte und linke Fahrbahnränder gruppiert, um sie für die Trajektorienplanung weiterzuverarbeiten.
 
    **Vorgehen bei der Gruppierung:**
+
    - Zunächst werden die Punkte am unteren Bildrand (y = 80) identifiziert und mithilfe eines Clustering-Verfahrens in Gruppen eingeteilt. Gibt es zwei Cluster, werden diese direkt als rechter und linker Fahrbahnrand zugeordnet. Bei mehr als zwei Clustern erfolgt die Zuordnung anhand des Durchschnitts der x-Koordinaten. Ist der Durchschnitt kleiner des Bildmittelpunkts (x = 48) handelt es sich um eine Linkskurve und die Clusters werden von links nach rechts einer Linkskurve zugeordnet (rechts, links, links, rechts). Ist der Durchschnitt größer handelt es sich um eine recht Kurve und die Zuordnung verläuft in anderer Richtung.
 
    - Anschließend werden die Punkte an den übrigen Bildrändern gesucht und mithilfe einer Verzweigungslogik den rechten und linken Linien zugeordnet. Die Punkte die als Randpunkte identifiziert werden werden später nicht in den Linien berücksichtigt, da sie in seltenen Randfällen nicht der wahren Zuordnung entsprechen, was wiederum keinen Einfluss auf die Zuordnung hat.
@@ -41,11 +42,11 @@ Ziel des Projekts ist die Entwicklung einer Pipeline für einen selbstfahrenden 
    Vor der Rückgabe werden die Koordinaten zweidimensionalen Linienarrays gedreht (Form [x ; y]), dass die Ausgabe mit der Eingabe der Trajektorienplanung übereinstimmt.
 
    **----------Umsetztung Optional----------**
-   1. **Zufallsfarben**
-   Es werden zusätzliche Farben zu mehr als 75% erkannt. Manche Farbkombinationen werden nicht erkannt, da sie zwar in Farbe gut zu unterscheiden sind, aber nach der Umwandlung in Graustufen sehr nah beieinander liegen. Dadurch werden die Linien in der Umgebung als stärkere Differenz erkannt und in rechts und links zugeordnet.
-   2. **Stabile Zuordnung**
-   Die Gruppierung der Linienpunkte erfolgt nicht nur durch einfache Schwellenwerte wie den Bildmittelpunkt, sondern nutzt Clustering-Algorithmen und eine spezielle Logik für Randpunkte. Dadurch werden auch in schwierigen Linienführungen die Fahrbahnbegrenzungen zuverlässig erkannt. Auch bei leichten Abweichungen von der Fahrbahn können die Linien zuverlässig zugeordnet werden. (siehe: Vorgehen bei der Gruppierung)
 
+   1. **Zufallsfarben**
+      Es werden zusätzliche Farben zu mehr als 75% erkannt. Manche Farbkombinationen werden nicht erkannt, da sie zwar in Farbe gut zu unterscheiden sind, aber nach der Umwandlung in Graustufen sehr nah beieinander liegen. Dadurch werden die Linien in der Umgebung als stärkere Differenz erkannt und in rechts und links zugeordnet.
+   2. **Stabile Zuordnung**
+      Die Gruppierung der Linienpunkte erfolgt nicht nur durch einfache Schwellenwerte wie den Bildmittelpunkt, sondern nutzt Clustering-Algorithmen und eine spezielle Logik für Randpunkte. Dadurch werden auch in schwierigen Linienführungen die Fahrbahnbegrenzungen zuverlässig erkannt. Auch bei leichten Abweichungen von der Fahrbahn können die Linien zuverlässig zugeordnet werden. (siehe: Vorgehen bei der Gruppierung)
 
 ## Trajektorienplanung
 
@@ -71,12 +72,30 @@ Ablauf der Planung:
 
 Die Anpassung der Trajektorie basierend auf der Kurvenkrümmung ermöglicht eine fahrdynamisch günstigere Linie, wodurch höhere Kurvengeschwindigkeiten und ein insgesamt flüssigerer Fahrverlauf erreicht werden. Gleichzeitig dient die berechnete Krümmung als Grundlage für die Längsregelung, um die Geschwindigkeit vorausschauend an die Streckenführung anzupassen.
 
+**----------Umsetztung Optional----------**
+
+1. **Nearest Neighbour Search**
+   - Linke und rechte Fahrbahn mit Nearest Neighbors Search filtern und entlang der Fahrbahn sortieren (optimiert spätere Berechnungen)
+   - Spezielles Filtern für Haarnadelkurven (vermeidet frühzeitige Kurvenerkennung -> führt zu frühzeitiges abbremsen)
+   - Linke und rechte Fahrbahn glätten für stabilere Trajektorie
+   - Krümmung jeden Punktes der berechneten Mittellinie bestimmen und Trajektorie basierend darauf seitlich verschieben (Kurven schneiden, Ideallinie)
+   - Berechnung des Krümmungsmaß der endgültigen Trajektorie für die Längstregelung optimieren (Output: Werte zwischen 0 und 1)
+
 ## Querregelung
 
 Für die Querregelung wird ein hybrider Ansatz verwendet, der je nach Geschwindigkeit zwischen zwei Reglern wechselt:
-Bei niedrigen Geschwindigkeiten kommt der Stanley-Controller zum Einsatz, der präzise Spurverfolgung auch bei engen Kurven erlaubt.
-Bei höheren Geschwindigkeiten wird auf den Pure-Pursuit-Controller umgeschaltet, der durch vorausschauendes Steuern eine stabile Fahrdynamik bei schneller Fahrt ermöglicht.
-Diese Kombination erlaubt sowohl schnelles Beschleunigen auf Geraden als auch sicheres Folgen der Ideallinie in kurvenreichen Streckenabschnitten.
+
+1. Bei niedrigen Geschwindigkeiten kommt der Stanley-Controller zum Einsatz, der präzise Spurverfolgung auch bei engen Kurven erlaubt.
+2. Bei höheren Geschwindigkeiten wird auf den Pure-Pursuit-Controller umgeschaltet, der durch vorausschauendes Steuern eine stabile Fahrdynamik bei schneller Fahrt ermöglicht.
+   Diese Kombination erlaubt sowohl schnelles Beschleunigen auf Geraden als auch sicheres Folgen der Ideallinie in kurvenreichen Streckenabschnitten.
+
+**----------Umsetztung Optional----------**
+
+1. **Hybrider Ansatz**
+   - Stanley Controller für niedrige Geschwindigkeiten
+   - Pure Pursuit für hohe Geschwindigkeiten
+2. **Eigenes Lenkverhalten für Startposition:**
+   - Geradeaus lenken, bei sehr niedriger Geschwindigkeit (Stanley Controller korrigiert zu stark)
 
 ## Längsregelung
 
@@ -88,6 +107,7 @@ Die Werte wurden durch Testing ermittelt und auf eine optimale Längskontrolle a
 Die Zielgeschwindigkeit des Fahrzeugs wird dynamisch anhand der aktuellen Streckengeometrie bestimmt. Dazu berechnet die Funktion `calculate_curvature_output` aus der geplanten Trajektorie einen normierten Krümmungswert zwischen 0 (gerade Strecke) und 1 (maximale Kurve). Diese Funktion analysiert die Richtungsänderungen entlang der Trajektorie und gewichtet dabei auch S-Kurven entsprechend stärker, da S-Kurven im Grenzbereich zu Problemen führen können. Wenn das Auto in der ersten Kurve aufgrund Geschwindigkeiten nahe dem Grenzbereich zu Rutschen beginnt kann die Gegenkurve nur schwer korrekt geregelt werden.
 
 Der berechnete Krümmungswert dient direkt als Eingabe für die Längsregelung:
+
 - Bei geringer Krümmung (nahe 0) wird eine höhere Geschwindigkeit angestrebt, da die Strecke überwiegend gerade ist.
 - Bei hoher Krümmung (nahe 1) wird die Geschwindigkeit reduziert, um eine sichere Kurvendurchfahrt zu gewährleisten.
 
@@ -97,5 +117,5 @@ Die Zielgeschwindigkeit ergibt sich dabei aus dem Maximum von Minimalgeschwindig
 Mit dem PID-Regler wird ein Ausgabesignal erzeugt, dass falls positiv eine Beschleunigung und falls Negativ eine Entschleunigung bewirkt. Die Werte für Gas und Bremse sind gewichtet und durch Tests ermittelt worden. Dabei werden Werte für die Beschleunigung deutlich verstärkt um das Auto schnell wieder auf mögliche Geschwindigkeiten zu beschleunigen. Die Werte für die Entschleunigung werden deutlich reduziert, dass das Auto nicht immer bei Erkennung einer Kurve abrupt bremst, sondern gleichmäßig in die Kurve hinein bremst, um möglichst lang die Geschwindigkeit auszunutzen.
 Die Werte der Beschleunigung werden bei Lenkeinschlägen, größer eines Grenzwertes Null gesetzt um Ausbrechen zu vermeiden.
 
-   **----------Umsetztung Optional----------**
-   Die Verbesserung der Längskontrolle wird durch unterschiedliche Heuristiken ermöglicht. In erster Linie wird durch die Betrachtung der Krümmung der Kurve durch `calculate_curvature_output` die Zielgeschwindigkeit aus einem Intervall zwischen der minimalen und der maximalen Geschwindigkeit berechnet. Zusätzlich zur Krümmung werden auch spezielle Streckenverläufe (S-Kurven) betrachtet, da sie eine besondere Regelung benötigen. Danach werden der Beschleunigungsparameter berechnet, wobei Gewichtungen von Gas und Bremse die Performance deutlich verbessert. Dadurch, dass teilweise schwarze Linien auf der Farbahn gezeigt werden, ist anzunehmen, dass die Längsregelung den Wagen nahe dem Grenzbereich fährt und somit die Performance star verbessert wurde.
+**----------Umsetztung Optional----------**
+Die Verbesserung der Längskontrolle wird durch unterschiedliche Heuristiken ermöglicht. In erster Linie wird durch die Betrachtung der Krümmung der Kurve durch `calculate_curvature_output` die Zielgeschwindigkeit aus einem Intervall zwischen der minimalen und der maximalen Geschwindigkeit berechnet. Zusätzlich zur Krümmung werden auch spezielle Streckenverläufe (S-Kurven) betrachtet, da sie eine besondere Regelung benötigen. Danach werden der Beschleunigungsparameter berechnet, wobei Gewichtungen von Gas und Bremse die Performance deutlich verbessert. Dadurch, dass teilweise schwarze Linien auf der Farbahn gezeigt werden, ist anzunehmen, dass die Längsregelung den Wagen nahe dem Grenzbereich fährt und somit die Performance star verbessert wurde.
